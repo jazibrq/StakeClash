@@ -9,9 +9,10 @@ import { MatchOverlay } from '@/components/modals/MatchOverlay';
 import { PartnersBanner } from '@/components/home/PartnersBanner';
 import { Footer } from '@/components/layout/Footer';
 import { Leaderboard } from '@/components/home/Leaderboard';
+import RaidGame from '@/components/RaidGame';
 import {
   Plus, Users, Filter, Search,
-  ChevronDown, Swords, Clock
+  ChevronDown, Swords, Clock, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -43,6 +44,7 @@ const Clash = () => {
   const [minYieldFilter, setMinYieldFilter] = useState('');
   const [sortBy, setSortBy] = useState('Most Recent');
   const [activeSection, setActiveSection] = useState<'clash' | 'leaderboard'>('clash');
+  const [inRaid, setInRaid] = useState(false);
 
   const handleJoinLobby = (lobby: typeof lobbies[0]) => {
     setSelectedLobby(lobby);
@@ -68,14 +70,45 @@ const Clash = () => {
               <h1 className="text-3xl font-bold mb-2">Clash</h1>
               <p className="text-muted-foreground">Join a lobby or host your own match</p>
             </div>
-            <Button
-              onClick={() => setHostModalOpen(true)}
-              className="btn-cyan-gradient gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Host Lobby
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setInRaid(true)}
+                className="gap-2 bg-amber-500/10 border border-amber-500/40 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/60"
+                variant="outline"
+              >
+                <Zap className="w-4 h-4" />
+                Quick Play
+              </Button>
+              <Button
+                onClick={() => setHostModalOpen(true)}
+                className="btn-cyan-gradient gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Host Lobby
+              </Button>
+            </div>
           </div>
+
+          {/* Raid game view */}
+          {inRaid && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-amber-400">⚔ Raid Mode</h2>
+                  <p className="text-sm text-muted-foreground">Survive 60 seconds · WASD to move · Auto-attacks</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInRaid(false)}
+                  className="text-muted-foreground"
+                >
+                  ✕ Exit Raid
+                </Button>
+              </div>
+              <RaidGame onReturn={() => setInRaid(false)} />
+            </div>
+          )}
 
           {/* Section Toggle */}
           <div className="flex items-center gap-2 mb-8">
