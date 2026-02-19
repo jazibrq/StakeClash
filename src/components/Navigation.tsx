@@ -101,7 +101,7 @@ export const Navigation = () => {
               href="https://x.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-surface-2 transition-colors"
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-primary hover:text-primary/80 hover:bg-surface-2 transition-colors"
                 aria-label="Follow us on X"
               >
                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">

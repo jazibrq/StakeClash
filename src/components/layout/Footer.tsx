@@ -7,7 +7,7 @@ export const Footer = ({ className = '' }: { className?: string }) => {
         </p>
         <div className="flex items-center gap-6">
           <a
-            href="https://github.com"
+            href="https://github.com/jazibrq/StakeClash"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
