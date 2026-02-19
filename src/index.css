@@ -1,87 +1,109 @@
-/* Google Fonts - Inter (Multiple weights for typography system) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Google Fonts - Pixelify Sans (display/game headers) + Inter (UI/body) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* SkillStack Design System - Esports + Fintech Aesthetic */
+/* StakeClash Design System — Crypto Medieval */
 
 @layer base {
   :root {
-    /* Base backgrounds - deep charcoal/near-black */
-    --background: 220 25% 5%;
-    --foreground: 210 20% 98%;
+    /* ── SURFACE ────────────────────────────────────────────── */
+    --background: 0 0% 0%;           /* #000000 — pure black */
+    --foreground: 210 40% 98%;       /* #F8FAFC — primary text */
 
-    /* Layered surfaces for depth */
-    --card: 220 20% 8%;
-    --card-foreground: 210 20% 98%;
-    --card-elevated: 220 18% 11%;
-    --card-highlight: 220 15% 14%;
+    /* All content boxes: pure black */
+    --card: 0 0% 0%;                 /* #000000 */
+    --card-foreground: 210 40% 98%;  /* #F8FAFC */
+    --card-elevated: 0 0% 0%;        /* #000000 */
+    --card-highlight: 221 39% 11%;   /* #111827 — subtle hover lift */
 
-    --popover: 220 20% 8%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 0%;
+    --popover-foreground: 210 40% 98%;
 
-    /* Primary - Electric Cyan */
-    --primary: 185 100% 50%;
-    --primary-foreground: 220 25% 5%;
-    --primary-glow: 185 100% 50%;
+    /* ── TEXT ───────────────────────────────────────────────── */
+    /* Primary text  : #F8FAFC → var(--foreground) */
+    /* Secondary text: #94A3B8 → var(--muted-foreground) won't quite match; use --text-secondary */
+    /* Muted text    : #64748B → var(--muted-foreground) */
+    --text-secondary: 215 20% 65%;   /* #94A3B8 */
+    --text-muted:     215 16% 47%;   /* #64748B */
+    --text-danger:    0 91% 71%;     /* #F87171 */
 
-    /* Secondary - Steel gray */
-    --secondary: 220 15% 15%;
-    --secondary-foreground: 210 15% 75%;
+    /* ── PRIMARY ACTION — Red ───────────────────────────────── */
+    --primary: 0 84% 60%;            /* #EF4444 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --primary-hover: 0 91% 71%;      /* #F87171 */
+    --primary-glow: 0 84% 60%;
 
-    /* Muted */
-    --muted: 220 15% 12%;
-    --muted-foreground: 215 15% 55%;
+    /* ── SECONDARY ──────────────────────────────────────────── */
+    --secondary: 221 39% 11%;        /* #111827 */
+    --secondary-foreground: 215 20% 65%;  /* #94A3B8 */
 
-    /* Accent - Ice blue */
-    --accent: 195 85% 55%;
-    --accent-foreground: 220 25% 5%;
+    /* ── MUTED ──────────────────────────────────────────────── */
+    --muted: 221 39% 11%;            /* #111827 */
+    --muted-foreground: 215 16% 47%; /* #64748B */
 
-    /* States */
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 98%;
+    /* ── ACCENT (removed cyan — uses primary red) ───────────── */
+    --accent: 0 84% 60%;             /* #EF4444 */
+    --accent-foreground: 0 0% 100%;
 
-    /* Borders */
-    --border: 220 15% 18%;
-    --border-glow: 185 100% 50%;
-    --input: 220 15% 15%;
-    --ring: 185 100% 50%;
+    /* ── STATES ─────────────────────────────────────────────── */
+    --destructive: 0 84% 60%;        /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* ── BORDERS & INPUTS ───────────────────────────────────── */
+    --border: 215 28% 17%;           /* #1F2937 */
+    --divider: 221 39% 11%;          /* #111827 */
+    --border-glow: 0 84% 60%;
+    --input: 215 28% 17%;            /* #1F2937 */
+    --ring: 0 84% 60%;               /* #EF4444 */
 
     --radius: 0.5rem;
 
-    /* Custom surfaces */
-    --surface-1: 220 20% 8%;
-    --surface-2: 220 18% 11%;
-    --surface-3: 220 15% 14%;
-    --surface-4: 220 12% 18%;
+    /* ── SURFACE LAYERS ─────────────────────────────────────── */
+    --surface-1: 0 0% 0%;            /* #000000 */
+    --surface-2: 221 39% 4%;         /* near-black with slight blue */
+    --surface-3: 221 39% 11%;        /* #111827 — divider */
+    --surface-4: 215 28% 17%;        /* #1F2937 — border */
 
-    /* Gradients */
-    --gradient-cyan: linear-gradient(135deg, hsl(185 100% 50%), hsl(195 85% 55%));
-    --gradient-cyan-subtle: linear-gradient(135deg, hsl(185 100% 50% / 0.2), hsl(195 85% 55% / 0.1));
-    --gradient-surface: linear-gradient(180deg, hsl(220 20% 10%), hsl(220 25% 5%));
+    /* ── RESOURCE COLORS ────────────────────────────────────── */
+    --resource-ore:              220 9% 46%;  /* #6B7280 */
+    --resource-ore-highlight:    218 11% 65%; /* #9CA3AF */
+    --resource-gold:             38 96% 56%;  /* #FBBF24 */
+    --resource-gold-highlight:   43 96% 62%;  /* #FCD34D */
+    --resource-diamond:          199 89% 48%; /* #38BDF8 */
+    --resource-diamond-glow:     199 89% 66%; /* #7DD3FC */
+    --resource-mana:             271 91% 65%; /* #A855F7 */
+    --resource-mana-glow:        271 87% 76%; /* #C084FC */
 
-    /* Glow effects */
-    --glow-cyan: 0 0 20px hsl(185 100% 50% / 0.3), 0 0 40px hsl(185 100% 50% / 0.1);
-    --glow-cyan-strong: 0 0 30px hsl(185 100% 50% / 0.5), 0 0 60px hsl(185 100% 50% / 0.2);
-    --glow-cyan-subtle: 0 0 10px hsl(185 100% 50% / 0.15);
+    /* ── ACTION COLORS ──────────────────────────────────────── */
+    --action-primary:  0 84% 60%;    /* #EF4444 */
+    --action-hover:    0 91% 71%;    /* #F87171 */
+    --action-success:  142 71% 45%;  /* #22C55E */
+    --action-warning:  38 92% 50%;   /* #F59E0B */
+    --action-danger:   0 91% 71%;    /* #F87171 */
 
-    /* Sidebar */
-    --sidebar-background: 220 20% 8%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 185 100% 50%;
-    --sidebar-primary-foreground: 220 25% 5%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 185 100% 50%;
+    /* ── GLOW EFFECTS — red-based ───────────────────────────── */
+    --glow-cyan:        0 0 20px hsl(0 84% 60% / 0.3), 0 0 40px hsl(0 84% 60% / 0.1);
+    --glow-cyan-strong: 0 0 30px hsl(0 84% 60% / 0.5), 0 0 60px hsl(0 84% 60% / 0.2);
+    --glow-cyan-subtle: 0 0 10px hsl(0 84% 60% / 0.15);
+
+    /* ── SIDEBAR ────────────────────────────────────────────── */
+    --sidebar-background: 0 0% 0%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 0 84% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 221 39% 11%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 28% 17%;
+    --sidebar-ring: 0 84% 60%;
   }
 
   .dark {
-    /* Same as root - app is dark mode only */
-    --background: 220 25% 5%;
-    --foreground: 210 20% 98%;
+    /* App is dark-only; mirrors :root */
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
   }
 }
 
@@ -96,16 +118,16 @@
     font-size: 16px;
     line-height: 1.6;
     font-weight: 400;
-    /* OpenType features for enhanced readability */
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "kern";
+    font-feature-settings: "kern";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  /* Typography Hierarchy */
+  /* === DISPLAY / GAME HEADERS — Pixelify Sans === */
   h1, h2, h3, h4, h5, h6 {
     @apply text-foreground;
+    font-family: 'Pixelify Sans', system-ui, sans-serif;
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: 0.02em;
@@ -114,7 +136,7 @@
 
   h1 {
     font-size: 2.5rem; /* 40px */
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.03em;
   }
 
@@ -144,17 +166,37 @@
     margin-bottom: 1rem;
   }
 
-  /* Premium number styling */
+  /* === BUTTONS — Pixelify Sans === */
+  button, [role="button"] {
+    font-family: 'Pixelify Sans', system-ui, sans-serif;
+  }
+
+  /* === NUMERIC / STAT DISPLAYS — Inter tabular === */
+  /* font-mono now maps to Inter with tabular numbers for clean data display */
   .font-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'Inter', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 }
 
 @layer components {
-  /* Typography - Label/Eyebrow Style (Editorial/Methodology vibe) */
+  /* === FONT UTILITIES === */
+
+  /* Display / game-styled text → Pixelify Sans */
+  .font-display {
+    font-family: 'Pixelify Sans', system-ui, sans-serif;
+  }
+
+  /* UI / body text → Inter */
+  .font-ui {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Typography - Label/Eyebrow Style — Inter */
   .ui-label {
     @apply text-xs font-medium text-muted-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 500;
@@ -162,28 +204,33 @@
 
   .ui-label-primary {
     @apply text-xs font-medium text-primary;
+    font-family: 'Inter', system-ui, sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 500;
   }
 
-  /* Section eyebrow - larger variant */
+  /* Section eyebrow - larger variant — Inter */
   .section-eyebrow {
     @apply text-sm font-medium text-muted-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     font-weight: 500;
   }
 
-  /* Cyan gradient button */
+  /* Primary CTA button — solid red, no gradient */
   .btn-cyan-gradient {
-    @apply relative overflow-hidden bg-gradient-to-r from-primary to-accent text-primary-foreground;
-    @apply transition-all duration-200 ease-out;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    @apply relative overflow-hidden text-white transition-all duration-200 ease-out;
+    background: #EF4444;
+    border: none;
+    font-family: 'Pixelify Sans', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
   }
 
   .btn-cyan-gradient:hover {
+    background: #F87171;
     box-shadow: var(--glow-cyan);
   }
 
@@ -191,21 +238,28 @@
     transform: scale(0.98);
   }
 
-  /* Outlined button with glow on hover */
+  /* Outlined button — black bg, gray border, red on hover */
   .btn-outline-glow {
-    @apply border border-border bg-transparent text-foreground;
     @apply transition-all duration-200 ease-out;
+    background: #000000;
+    border: 1px solid #1F2937;
+    color: hsl(var(--foreground));
+    font-family: 'Pixelify Sans', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.04em;
   }
 
   .btn-outline-glow:hover {
-    @apply border-primary text-primary;
+    border-color: #EF4444;
+    color: #EF4444;
     box-shadow: var(--glow-cyan-subtle);
   }
 
-  /* Card with layered depth - glass effect for video background */
+  /* Card — pure black, no gradients */
   .card-surface {
-    @apply border border-white/10 rounded-lg backdrop-blur-xl;
-    background: linear-gradient(180deg, hsl(220 25% 8% / 0.8), hsl(220 25% 6% / 0.75));
+    @apply rounded-lg;
+    background: #000000;
+    border: 1px solid #1F2937;
   }
 
   /* Header image background with slight blur */
@@ -241,8 +295,9 @@
   }
 
   .card-surface-elevated {
-    @apply border border-white/[0.12] rounded-lg backdrop-blur-xl;
-    background: linear-gradient(180deg, hsl(220 25% 10% / 0.85), hsl(220 25% 8% / 0.8));
+    @apply rounded-lg;
+    background: #000000;
+    border: 1px solid #1F2937;
   }
 
 
@@ -299,14 +354,18 @@
     @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 
-  /* Metric display */
+  /* Metric display — Inter for numeric data */
   .metric-value {
-    @apply text-3xl font-bold tracking-tight font-mono text-foreground;
+    @apply text-3xl tracking-tight font-mono text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
+  /* Metric label — Inter small caps */
   .metric-label {
-    @apply text-xs font-medium text-muted-foreground;
+    @apply text-xs text-muted-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 500;
@@ -328,8 +387,8 @@
   }
 
   .row-hover:hover {
-    @apply bg-card-elevated;
-    box-shadow: inset 2px 0 0 0 hsl(var(--primary));
+    background: #111827;
+    box-shadow: inset 2px 0 0 0 #EF4444;
   }
 
   /* Skeleton loading */
@@ -493,7 +552,7 @@
 
   .lobby-row-hover:hover {
     @apply -translate-y-0.5 shadow-lg;
-    box-shadow: 0 4px 20px -5px hsl(185 100% 50% / 0.2), inset 0 0 0 1px hsl(185 100% 50% / 0.3);
+    box-shadow: 0 4px 20px -5px hsl(0 84% 60% / 0.2), inset 0 0 0 1px hsl(0 84% 60% / 0.3);
   }
 
   /* Modal animation */
@@ -530,10 +589,10 @@
 /* Keyframes */
 @keyframes glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 20px hsl(185 100% 50% / 0.3);
+    box-shadow: 0 0 20px hsl(0 84% 60% / 0.3);
   }
   50% {
-    box-shadow: 0 0 30px hsl(185 100% 50% / 0.5);
+    box-shadow: 0 0 30px hsl(0 84% 60% / 0.5);
   }
 }
 
@@ -617,14 +676,14 @@
 @keyframes checkpoint-ping {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 hsl(185 100% 50% / 0.7);
+    box-shadow: 0 0 0 0 hsl(0 84% 60% / 0.7);
   }
   50% {
     transform: scale(1.1);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 15px hsl(185 100% 50% / 0);
+    box-shadow: 0 0 0 15px hsl(0 84% 60% / 0);
   }
 }
 
@@ -679,7 +738,7 @@
   }
   50% {
     transform: scale(1.05);
-    color: hsl(185 100% 60%);
+    color: hsl(0 91% 71%);
   }
   100% {
     transform: scale(1);

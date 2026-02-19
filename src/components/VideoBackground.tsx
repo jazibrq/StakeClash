@@ -269,7 +269,7 @@ export const VideoBackground = ({ overlayOpacity = 0.5 }: VideoBackgroundProps) 
           warpActive ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        <source src="/videos/realbackgroundvideo.mp4" type="video/mp4" />
+        <source src="/videos/animatedbackground.mp4" type="video/mp4" />
       </video>
 
       {/* WebGL warp canvas */}
@@ -278,27 +278,6 @@ export const VideoBackground = ({ overlayOpacity = 0.5 }: VideoBackgroundProps) 
         className={`absolute inset-0 w-full h-full ${warpActive ? 'opacity-100' : 'opacity-0'}`}
       />
       
-      {/* Dark overlay for text readability - starts below navigation */}
-      <div
-        className="absolute inset-x-0 bottom-0"
-        style={{
-          top: '80px', // Start below the navigation header
-          background: `linear-gradient(180deg,
-            hsl(220 25% 4% / ${overlayOpacity}) 0%,
-            hsl(220 25% 6% / ${overlayOpacity * 0.9}) 50%,
-            hsl(220 25% 4% / ${overlayOpacity}) 100%
-          )`,
-        }}
-      />
-
-      {/* Subtle vignette - starts below navigation */}
-      <div
-        className="absolute inset-x-0 bottom-0"
-        style={{
-          top: '80px', // Start below the navigation header
-          background: 'radial-gradient(ellipse at center, transparent 0%, hsl(220 25% 4% / 0.4) 100%)',
-        }}
-      />
 
       {/* CSS fallback refraction hint */}
       {fallbackActive && (

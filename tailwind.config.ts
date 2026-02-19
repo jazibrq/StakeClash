@@ -15,6 +15,7 @@ export default {
     extend: {
       colors: {
         border: "hsl(var(--border))",
+        divider: "hsl(var(--divider))",
         "border-glow": "hsl(var(--border-glow))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -23,6 +24,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -66,6 +68,25 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // ── Resource color tokens ──────────────────────────────
+        resource: {
+          ore:              "#6B7280",
+          "ore-highlight":  "#9CA3AF",
+          gold:             "#FBBF24",
+          "gold-highlight": "#FCD34D",
+          diamond:          "#38BDF8",
+          "diamond-glow":   "#7DD3FC",
+          mana:             "#A855F7",
+          "mana-glow":      "#C084FC",
+        },
+        // ── Action color tokens ────────────────────────────────
+        action: {
+          primary: "#EF4444",
+          hover:   "#F87171",
+          success: "#22C55E",
+          warning: "#F59E0B",
+          danger:  "#F87171",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -73,32 +94,44 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
+        // Display / game-styled headings, buttons, nav labels
+        display: [
+          'Pixelify Sans',
+          'system-ui',
+          'sans-serif',
+        ],
+        // UI / body / paragraph text
         sans: [
           'Inter',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
-          'Segoe UI',
-          'Roboto',
-          'Helvetica Neue',
-          'Arial',
-          'sans-serif'
+          'sans-serif',
         ],
+        // Numeric stats, balances, addresses — Inter with tabular figures
         mono: [
-          'JetBrains Mono',
-          'Fira Code',
-          'Consolas',
-          'Monaco',
-          'Courier New',
-          'monospace'
+          'Inter',
+          'system-ui',
+          'sans-serif',
         ],
       },
       boxShadow: {
-        'glow-cyan': '0 0 20px hsl(185 100% 50% / 0.3), 0 0 40px hsl(185 100% 50% / 0.1)',
-        'glow-cyan-strong': '0 0 30px hsl(185 100% 50% / 0.5), 0 0 60px hsl(185 100% 50% / 0.2)',
-        'glow-cyan-subtle': '0 0 10px hsl(185 100% 50% / 0.15)',
+        // Primary glow — red (#EF4444)
+        'glow-primary':        '0 0 20px hsl(0 84% 60% / 0.3), 0 0 40px hsl(0 84% 60% / 0.1)',
+        'glow-primary-strong': '0 0 30px hsl(0 84% 60% / 0.5), 0 0 60px hsl(0 84% 60% / 0.2)',
+        'glow-primary-subtle': '0 0 10px hsl(0 84% 60% / 0.15)',
+        // Legacy aliases (keep for backwards compat)
+        'glow-cyan':        '0 0 20px hsl(0 84% 60% / 0.3), 0 0 40px hsl(0 84% 60% / 0.1)',
+        'glow-cyan-strong': '0 0 30px hsl(0 84% 60% / 0.5), 0 0 60px hsl(0 84% 60% / 0.2)',
+        'glow-cyan-subtle': '0 0 10px hsl(0 84% 60% / 0.15)',
+        // Resource glows
+        'glow-gold':    '0 0 16px hsl(38 96% 56% / 0.4)',
+        'glow-diamond': '0 0 16px hsl(199 89% 48% / 0.4)',
+        'glow-mana':    '0 0 16px hsl(271 91% 65% / 0.4)',
+        'glow-ore':     '0 0 12px hsl(220 9% 46% / 0.3)',
+        // Utility
         'inset-border': 'inset 0 1px 0 0 hsl(var(--border) / 0.5)',
-        'surface': '0 4px 6px -1px hsl(220 25% 5% / 0.5), 0 2px 4px -2px hsl(220 25% 5% / 0.5)',
+        'surface': '0 4px 6px -1px hsl(0 0% 0% / 0.8), 0 2px 4px -2px hsl(0 0% 0% / 0.8)',
       },
       keyframes: {
         "accordion-down": {

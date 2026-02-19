@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import skillstackLogo from '@/assets/skillstack-logo.png';
+import skillstackLogo from '@/assets/stakeclashlogo.png';
 
 const navItems = [
   { label: 'Home', path: '/' },
@@ -71,7 +71,7 @@ export const Navigation = () => {
             <div ref={navRef} className="hidden md:flex flex-1 items-center justify-center gap-1 relative">
               {/* Sliding indicator */}
               <div
-                className="absolute bottom-0 h-0.5 bg-primary rounded-full shadow-[0_0_10px_hsl(185_100%_50%/0.5)] transition-all duration-300 ease-out"
+                className="absolute bottom-0 h-0.5 bg-primary rounded-full shadow-[0_0_10px_hsl(0_84%_60%/0.5)] transition-all duration-300 ease-out"
                 style={{
                   left: indicatorStyle.left + 16,
                   width: indicatorStyle.width - 32,
@@ -83,7 +83,7 @@ export const Navigation = () => {
                   key={item.path}
                   to={item.path}
                   className={cn(
-                  'px-4 py-2 text-lg font-medium transition-colors relative uppercase tracking-wide',
+                  'px-4 py-2 text-lg font-medium transition-colors relative uppercase tracking-wide font-display',
                     location.pathname === item.path
                       ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground'
@@ -160,7 +160,7 @@ export const Navigation = () => {
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  'block px-4 py-3 rounded-lg text-base font-medium transition-colors uppercase tracking-wide',
+                  'block px-4 py-3 rounded-lg text-base font-medium transition-colors uppercase tracking-wide font-display',
                   location.pathname === item.path
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground'
