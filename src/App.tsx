@@ -9,12 +9,14 @@ import Clash from "./pages/Clash";
 import Learn from "./pages/Learn";
 import Hero from "./pages/Hero";
 import NotFound from "./pages/NotFound";
+import { WalletProvider } from "./contexts/WalletContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <WalletProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -28,6 +30,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+      </WalletProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

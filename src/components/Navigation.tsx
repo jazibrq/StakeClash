@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, ChevronDown, Menu, X } from 'lucide-react';
+import { Wallet, ChevronDown, Menu, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import skillstackLogo from '@/assets/stakeclashlogo.png';
+import { useWalletContext } from '@/contexts/WalletContext';
 
 const navItems = [
   { label: 'Home', path: '/' },
@@ -21,14 +22,10 @@ const navItems = [
 
 export const Navigation = () => {
   const location = useLocation();
-  const [isConnected, setIsConnected] = useState(false);
+  const { isConnected, isConnecting, address, shortenedAddress, connect, disconnect, error } = useWalletContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const navRef = useRef<HTMLDivElement>(null);
-
-  const handleConnect = () => {
-    setIsConnected(true);
-  };
 
   // Update sliding indicator position
   useEffect(() => {
@@ -110,30 +107,43 @@ export const Navigation = () => {
               </a>
 
               {/* Connect Wallet / User Menu */}
-              {isConnected ? (
+              {isConnected && address ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="default" className="gap-2 btn-outline-glow uppercase tracking-wide">
                       <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary to-accent" />
-                      <span className="hidden sm:inline text-sm font-mono">0x1234...5678</span>
+                      <span className="hidden sm:inline text-sm font-mono">{shortenedAddress}</span>
                       <ChevronDown className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem className="uppercase tracking-wide">View Wallet</DropdownMenuItem>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem className="font-mono text-xs cursor-default" onSelect={(e) => e.preventDefault()}>
+                      {address}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="uppercase tracking-wide"
+                      onClick={() => navigator.clipboard.writeText(address)}
+                    >
+                      Copy Address
+                    </DropdownMenuItem>
                     <DropdownMenuItem className="uppercase tracking-wide">Transaction History</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsConnected(false)} className="uppercase tracking-wide">
+                    <DropdownMenuItem onClick={disconnect} className="uppercase tracking-wide">
                       Disconnect
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
             ) : (
               <Button
-                onClick={handleConnect}
+                onClick={connect}
+                disabled={isConnecting}
                 size="default"
                 className="btn-cyan-gradient rounded-full px-6 uppercase tracking-wide"
               >
-                <span className="hidden sm:inline">Connect Wallet</span>
+                {isConnecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span className="hidden sm:inline">Connect Wallet</span>
+                )}
               </Button>
             )}
 
