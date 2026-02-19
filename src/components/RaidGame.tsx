@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 /* ─── types ─────────────────────────────────────────────────── */
 
 type PState = 'idle' | 'running' | 'attacking' | 'dead';
-type EState = 'running' | 'attacking' | 'dead';
+type EState = 'running' | 'attacking' | 'dying' | 'dead';
 
 interface Vec2 { x: number; y: number; }
 
@@ -12,19 +12,34 @@ interface Player extends Vec2 {
   hp: number;
   state:          PState;
   frameIndex:     number;
-  animTimer:      number;   // ms accumulated in current frame
-  attackCooldown: number;   // ms remaining before next melee
+  animTimer:      number;    // ms accumulated in current frame
+  attackCooldown: number;    // ms remaining before next melee
   facing:         1 | -1;   // 1 = right, -1 = left
-  damageDealt:    boolean;  // melee burst fired this swing
+  damageDealt:    boolean;   // melee burst fired this swing
+  shieldActive:   boolean;
+  shieldTimer:    number;    // ms of shield remaining
+  shieldCooldown: number;    // ms until shield can be used again
 }
 
 interface Enemy extends Vec2 {
-  id: number; hp: number;
-  state:      EState;
-  frameIndex: number;
-  animTimer:  number;
-  facing:     1 | -1;
-  damageDealt: boolean;  // whether this attack swing dealt damage
+  id: number;
+  hp: number;
+  type:              'knight' | 'mage';
+  state:             EState;
+  frameIndex:        number;
+  animTimer:         number;
+  facing:            1 | -1;
+  damageDealt:       boolean;  // knight: whether this attack swing dealt damage
+  attackCooldown:    number;   // mage: ms remaining before next ranged attack
+  projectileSpawned: boolean;  // mage: projectile fired this attack cycle
+}
+
+interface Projectile {
+  id:     number;
+  x:      number; y:  number;
+  vx:     number; vy: number;
+  radius: number;
+  done:   boolean;
 }
 
 interface Particle extends Vec2 {
@@ -33,18 +48,20 @@ interface Particle extends Vec2 {
 }
 
 interface GS {
-  player: Player;
-  enemies: Enemy[];
-  particles: Particle[];
-  keys: Record<string, boolean>;
-  timer: number;
-  lastSpawn: number;
-  running: boolean;
-  uid: number;
+  player:           Player;
+  enemies:          Enemy[];
+  particles:        Particle[];
+  enemyProjectiles: Projectile[];
+  keys:             Record<string, boolean>;
+  timer:            number;
+  lastSpawn:        number;
+  running:          boolean;
+  uid:              number;
 }
 
 type PlayerSprites = Record<PState, HTMLImageElement | null>;
-type EnemySprites  = Record<EState, HTMLImageElement | null>;
+type KnightSprites = Record<'running' | 'attacking' | 'dead', HTMLImageElement | null>;
+type MageSprites   = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
 
 /* ─── constants ─────────────────────────────────────────────── */
 
@@ -56,14 +73,26 @@ const ENEMY_RADIUS     = 12;
 const ENEMY_MAX_HP     = 40;
 const ENEMY_BASE_SPEED = 75;
 const ENEMY_DAMAGE     = 14;
-const SPAWN_RATE_START = 1400;
-const SPAWN_RATE_MIN   = 380;
+const SPAWN_RATE_START = 3500;  // ~60% fewer enemies than original
+const SPAWN_RATE_MIN   = 950;
 
 const RENDER_SIZE        = 160;  // player sprite draw size (px)
-const ENEMY_RENDER_SIZE  = 100;  // enemy sprite draw size (px)
+const ENEMY_RENDER_SIZE  = 128;  // knight sprite draw size (px) — 80% of player
 const MELEE_RADIUS       = 60;   // melee attack reach
 const ATTACK_COOLDOWN    = 600;  // ms between melee uses
-const CONTACT_RADIUS     = PLAYER_RADIUS + ENEMY_RADIUS; // enemy→player touch
+const CONTACT_RADIUS     = PLAYER_RADIUS + ENEMY_RADIUS;
+
+const SHIELD_DURATION  = 5000;   // ms shield stays active
+const SHIELD_COOLDOWN  = 10000;  // ms before shield can be used again
+
+/* ── mage constants ── */
+const MAGE_RENDER_SIZE            = 128;  // 80% of player
+const MAGE_ATTACK_RANGE           = 300;
+const MAGE_ATTACK_COOLDOWN        = 1400;   // ms
+const MAGE_PROJECTILE_SPEED       = 240;    // px/s  (4 px/frame × 60 fps)
+const MAGE_PROJECTILE_RADIUS      = 6;
+const MAGE_PROJECTILE_DAMAGE      = 10;
+const MAGE_PROJECTILE_SPAWN_FRAME = 6;      // 0-indexed frame that fires the projectile
 
 /* ── player (samurai) anim config ── */
 const ANIM_CONFIG: Record<PState, { frames: number; frameDuration: number; loop: boolean }> = {
@@ -74,13 +103,20 @@ const ANIM_CONFIG: Record<PState, { frames: number; frameDuration: number; loop:
 };
 const MELEE_DAMAGE_START_FRAME = 3; // 0-indexed: damage on last frame of 4-frame attack
 
-/* ── enemy (iron vanguard / knight) anim config ── */
-const ENEMY_ANIM_CONFIG: Record<EState, { frames: number; frameDuration: number; loop: boolean }> = {
+/* ── knight anim config ── */
+const KNIGHT_ANIM_CONFIG: Record<'running' | 'attacking' | 'dead', { frames: number; frameDuration: number; loop: boolean }> = {
   running:   { frames: 7, frameDuration: 80,  loop: true  },
   attacking: { frames: 5, frameDuration: 90,  loop: true  },
   dead:      { frames: 6, frameDuration: 100, loop: false },
 };
-const ENEMY_ATTACK_DAMAGE_FRAME = 3; // frame on which enemy deals damage
+const KNIGHT_ATTACK_DAMAGE_FRAME = 3;
+
+/* ── mage anim config ── */
+const MAGE_ANIM_CONFIG: Record<'run' | 'attack' | 'death', { frames: number; frameDuration: number; loop: boolean }> = {
+  run:    { frames: 8, frameDuration: 90,  loop: true  },
+  attack: { frames: 9, frameDuration: 100, loop: false },
+  death:  { frames: 4, frameDuration: 110, loop: false },
+};
 
 /* ── sprite sheet paths ── */
 const PLAYER_SPRITE_FILE: Record<PState, string> = {
@@ -89,10 +125,15 @@ const PLAYER_SPRITE_FILE: Record<PState, string> = {
   attacking: 'Attack',
   dead:      'Dead',
 };
-const ENEMY_SPRITE_FILE: Record<EState, string> = {
+const KNIGHT_SPRITE_FILE: Record<'running' | 'attacking' | 'dead', string> = {
   running:   'Run',
   attacking: 'Attack',
   dead:      'Dead',
+};
+const MAGE_SPRITE_FILE: Record<'run' | 'attack' | 'death', string> = {
+  run:    'Run',
+  attack: 'Attack',
+  death:  'Dead',
 };
 
 /* ─── helpers ────────────────────────────────────────────────── */
@@ -117,17 +158,27 @@ const roundRect = (
   ctx.closePath();
 };
 
+/** Maps mage EState → sprite/anim key */
+const mageAnimKey = (state: EState): 'run' | 'attack' | 'death' => {
+  if (state === 'attacking')              return 'attack';
+  if (state === 'dying' || state === 'dead') return 'death';
+  return 'run';
+};
+
 /* ─── component ─────────────────────────────────────────────── */
 
 interface Props { onReturn: () => void; }
 
 const RaidGame: React.FC<Props> = ({ onReturn }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const rootRef    = useRef<HTMLDivElement>(null);
   const gsRef      = useRef<GS | null>(null);
   const rafRef     = useRef(0);
   const playerSpritesRef = useRef<PlayerSprites>({ idle: null, running: null, attacking: null, dead: null });
-  const enemySpritesRef  = useRef<EnemySprites>({ running: null, attacking: null, dead: null });
+  const knightSpritesRef = useRef<KnightSprites>({ running: null, attacking: null, dead: null });
+  const mageSpritesRef   = useRef<MageSprites>({ run: null, attack: null, death: null });
   const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const [started, setStarted] = useState(false);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
 
   /* ── load sprites + background once on mount ── */
@@ -138,11 +189,17 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       img.onload  = () => { playerSpritesRef.current[state] = img; };
       img.onerror = () => { playerSpritesRef.current[state] = null; };
     });
-    (Object.keys(ENEMY_SPRITE_FILE) as EState[]).forEach(state => {
+    (Object.keys(KNIGHT_SPRITE_FILE) as Array<keyof typeof KNIGHT_SPRITE_FILE>).forEach(state => {
       const img = new Image();
-      img.src = `/enemies/knights/${ENEMY_SPRITE_FILE[state]}.png`;
-      img.onload  = () => { enemySpritesRef.current[state] = img; };
-      img.onerror = () => { enemySpritesRef.current[state] = null; };
+      img.src = `/enemies/knights/${KNIGHT_SPRITE_FILE[state]}.png`;
+      img.onload  = () => { knightSpritesRef.current[state] = img; };
+      img.onerror = () => { knightSpritesRef.current[state] = null; };
+    });
+    (Object.keys(MAGE_SPRITE_FILE) as Array<keyof typeof MAGE_SPRITE_FILE>).forEach(state => {
+      const img = new Image();
+      img.src = `/enemies/mage/${MAGE_SPRITE_FILE[state]}.png`;
+      img.onload  = () => { mageSpritesRef.current[state] = img; };
+      img.onerror = () => { mageSpritesRef.current[state] = null; };
     });
     const bg = new Image();
     bg.src = '/images/finalbattlebackground.png';
@@ -157,15 +214,17 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       hp: PLAYER_MAX_HP,
       state: 'idle', frameIndex: 0, animTimer: 0,
       attackCooldown: 0, facing: 1, damageDealt: false,
+      shieldActive: false, shieldTimer: 0, shieldCooldown: 0,
     },
-    enemies: [], particles: [],
+    enemies: [], particles: [], enemyProjectiles: [],
     keys: {}, timer: GAME_DURATION,
     lastSpawn: 0,
     running: true, uid: 0,
   }), []);
 
-  /* ── main effect ── */
+  /* ── main effect (only runs after player presses START) ── */
   useEffect(() => {
+    if (!started) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -197,7 +256,17 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       else if (side === 1) { x = W + m; y = Math.random() * H; }
       else if (side === 2) { x = Math.random() * W; y = H + m; }
       else                 { x = -m;    y = Math.random() * H; }
-      gs.enemies.push({ id: gs.uid++, x, y, hp: ENEMY_MAX_HP, state: 'running', frameIndex: 0, animTimer: 0, facing: 1, damageDealt: false });
+
+      const isMage = Math.random() < 0.35;  // 35% mage spawn rate
+      gs.enemies.push({
+        id: gs.uid++, x, y,
+        hp: ENEMY_MAX_HP,
+        type: isMage ? 'mage' : 'knight',
+        state: 'running',
+        frameIndex: 0, animTimer: 0,
+        facing: 1, damageDealt: false,
+        attackCooldown: 0, projectileSpawned: false,
+      });
       gs.lastSpawn = now;
     };
 
@@ -221,6 +290,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       for (let x = 0; x < W; x += g) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
       for (let y = 0; y < H; y += g) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
     };
+    void drawGrid; // defined but intentionally unused
 
     const drawPlayer = (p: Player) => {
       const cfg = ANIM_CONFIG[p.state];
@@ -260,11 +330,30 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.arc(p.x, p.y, PLAYER_RADIUS * 0.42, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      /* shield orb — always drawn on top of sprite/fallback */
+      if (p.shieldActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.38;
+        ctx.fillStyle   = '#42a5f5';
+        ctx.shadowColor = '#1e88e5';
+        ctx.shadowBlur  = 22;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, PLAYER_RADIUS + 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = '#90caf9';
+        ctx.lineWidth   = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
     };
 
-    const drawEnemy = (e: Enemy) => {
-      const cfg = ENEMY_ANIM_CONFIG[e.state];
-      const img = enemySpritesRef.current[e.state];
+    const drawKnight = (e: Enemy) => {
+      // 'dying' is not a valid knight state; guard maps it to 'dead' just in case
+      const kstate = (e.state === 'dying' ? 'dead' : e.state) as 'running' | 'attacking' | 'dead';
+      const cfg  = KNIGHT_ANIM_CONFIG[kstate];
+      const img  = knightSpritesRef.current[kstate];
       const half = ENEMY_RENDER_SIZE / 2;
 
       if (img && img.complete && img.naturalWidth > 0) {
@@ -289,14 +378,64 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.shadowBlur = 0;
       }
 
-      /* HP bar */
-      if (e.state !== 'dead') {
+      if (e.state !== 'dead' && e.state !== 'dying') {
         const hf = e.hp / ENEMY_MAX_HP;
         const bw = ENEMY_RENDER_SIZE * 0.5;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw, 3);
         ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
         ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw * hf, 3);
+      }
+    };
+
+    const drawMage = (e: Enemy) => {
+      const key  = mageAnimKey(e.state);
+      const cfg  = MAGE_ANIM_CONFIG[key];
+      const img  = mageSpritesRef.current[key];
+      const half = MAGE_RENDER_SIZE / 2;
+
+      if (img && img.complete && img.naturalWidth > 0) {
+        const frameW = img.width / cfg.frames;
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        if (e.facing === -1) ctx.scale(-1, 1);
+        ctx.drawImage(
+          img,
+          e.frameIndex * frameW, 0, frameW, img.height,
+          -half, -half, MAGE_RENDER_SIZE, MAGE_RENDER_SIZE,
+        );
+        ctx.restore();
+      } else {
+        /* fallback: purple orb */
+        ctx.shadowColor = '#9c27b0';
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = 'rgba(156,39,176,0.85)';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, ENEMY_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      if (e.state !== 'dead' && e.state !== 'dying') {
+        const hf = e.hp / ENEMY_MAX_HP;
+        const bw = MAGE_RENDER_SIZE * 0.5;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw, 3);
+        ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw * hf, 3);
+      }
+    };
+
+    const drawProjectiles = (projs: Projectile[]) => {
+      for (const proj of projs) {
+        ctx.save();
+        ctx.shadowColor = '#ce93d8';
+        ctx.shadowBlur  = 14;
+        ctx.fillStyle   = '#ab47bc';
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
     };
 
@@ -329,6 +468,23 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       ctx.font = '10px monospace';
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.fillText('SURVIVE', W / 2, 52);
+
+      /* shield indicator (bottom-left) */
+      {
+        const sx = 20, sy = 46, sw = 80, sh = 8;
+        const shReady = gs.player.shieldCooldown <= 0 && !gs.player.shieldActive;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        roundRect(ctx, sx - 2, sy - 2, sw + 4, sh + 4, 3); ctx.fill();
+        const shFill = gs.player.shieldActive
+          ? 1
+          : Math.max(0, 1 - gs.player.shieldCooldown / SHIELD_COOLDOWN);
+        ctx.fillStyle = gs.player.shieldActive ? '#42a5f5' : shReady ? '#1565c0' : '#455a64';
+        roundRect(ctx, sx, sy, sw * shFill, sh, 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('SHIELD', sx, sy - 4);
+      }
 
       /* enemy count */
       ctx.textAlign = 'right';
@@ -363,8 +519,13 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         }
       }
 
-      /* ── attack cooldown tick ── */
+      /* ── cooldown ticks ── */
       if (p.attackCooldown > 0) p.attackCooldown -= dtMs;
+      if (p.shieldActive) {
+        p.shieldTimer -= dtMs;
+        if (p.shieldTimer <= 0) { p.shieldActive = false; p.shieldCooldown = SHIELD_COOLDOWN; }
+      }
+      if (p.shieldCooldown > 0) p.shieldCooldown -= dtMs;
 
       /* ── state transitions (dead overrides all; attacking holds until complete) ── */
       if (p.state !== 'dead' && p.state !== 'attacking') {
@@ -376,22 +537,23 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         transitionState(p, moving ? 'running' : 'idle');
       }
 
-      /* ── advance animation ── */
+      /* ── advance player animation ── */
       const cfg = ANIM_CONFIG[p.state];
       p.animTimer += dtMs;
       while (p.animTimer >= cfg.frameDuration) {
         p.animTimer -= cfg.frameDuration;
 
-        /* melee burst fires on damage frame (last frame of 4-frame attack) */
+        /* melee burst fires on damage frame */
         if (p.state === 'attacking' && p.frameIndex >= MELEE_DAMAGE_START_FRAME && !p.damageDealt) {
           p.damageDealt = true;
           for (const e of gs.enemies) {
-            if (e.state === 'dead') continue;
+            if (e.state === 'dead' || e.state === 'dying') continue;
             if (dist2(p.x, p.y, e.x, e.y) < MELEE_RADIUS ** 2) {
               burst(gs, e.x, e.y, '#fbbf24', 6);
-              e.state = 'dead';
+              // mage plays death animation; knight snaps straight to dead
+              e.state      = e.type === 'mage' ? 'dying' : 'dead';
               e.frameIndex = 0;
-              e.animTimer = 0;
+              e.animTimer  = 0;
             }
           }
         }
@@ -434,43 +596,66 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         p.vx *= 0.75; p.vy *= 0.75;
       }
 
-      /* ── move enemies + enemy state machine ── */
+      /* ── enemy state machines + movement ── */
       if (p.state !== 'dead') {
         const speed = ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9;
-        for (const e of gs.enemies) {
-          if (e.state === 'dead') continue; // dead enemies don't move or attack
 
-          const dx = p.x - e.x, dy = p.y - e.y;
+        for (const e of gs.enemies) {
+          if (e.state === 'dying' || e.state === 'dead') continue;
+
+          const dx  = p.x - e.x;
+          const dy  = p.y - e.y;
           const len = Math.sqrt(dx * dx + dy * dy) || 1;
 
-          // face toward player
           e.facing = dx >= 0 ? 1 : -1;
 
-          const inContact = len < CONTACT_RADIUS + 10;
+          if (e.type === 'mage') {
+            /* ── mage state machine ── */
+            if (e.attackCooldown > 0) e.attackCooldown -= dtMs;
 
-          if (inContact) {
-            // switch to attacking if not already
-            if (e.state !== 'attacking') {
-              e.state = 'attacking';
-              e.frameIndex = 0;
-              e.animTimer = 0;
-              e.damageDealt = false;
+            if (e.state === 'attacking') {
+              // locked — no movement, animation section handles the transition
+            } else {
+              // state === 'running'
+              if (len > MAGE_ATTACK_RANGE) {
+                // chase player
+                e.x += (dx / len) * speed * dt;
+                e.y += (dy / len) * speed * dt;
+              } else if (e.attackCooldown <= 0) {
+                // in range, cooldown ready → begin attack
+                e.state             = 'attacking';
+                e.frameIndex        = 0;
+                e.animTimer         = 0;
+                e.projectileSpawned = false;
+              }
+              // else: in range but cooldown not ready → stand still
             }
           } else {
-            // move toward player
-            if (e.state !== 'attacking') {
-              if (e.state !== 'running') {
-                e.state = 'running';
-                e.frameIndex = 0;
-                e.animTimer = 0;
+            /* ── knight state machine (unchanged) ── */
+            const inContact = len < CONTACT_RADIUS + 10;
+
+            if (inContact) {
+              if (e.state !== 'attacking') {
+                e.state       = 'attacking';
+                e.frameIndex  = 0;
+                e.animTimer   = 0;
+                e.damageDealt = false;
               }
-              e.x += (dx / len) * speed * dt;
-              e.y += (dy / len) * speed * dt;
             } else {
-              // if was attacking but player moved out of range, go back to running
-              e.state = 'running';
-              e.frameIndex = 0;
-              e.animTimer = 0;
+              if (e.state !== 'attacking') {
+                if (e.state !== 'running') {
+                  e.state      = 'running';
+                  e.frameIndex = 0;
+                  e.animTimer  = 0;
+                }
+                e.x += (dx / len) * speed * dt;
+                e.y += (dy / len) * speed * dt;
+              } else {
+                // was attacking but player moved away → back to running
+                e.state      = 'running';
+                e.frameIndex = 0;
+                e.animTimer  = 0;
+              }
             }
           }
         }
@@ -478,45 +663,129 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
       /* ── advance enemy animations ── */
       for (const e of gs.enemies) {
-        const cfg = ENEMY_ANIM_CONFIG[e.state];
-        e.animTimer += dtMs;
-        while (e.animTimer >= cfg.frameDuration) {
-          e.animTimer -= cfg.frameDuration;
+        if (e.type === 'mage') {
+          /* ── mage animation ── */
+          const key  = mageAnimKey(e.state);
+          const mcfg = MAGE_ANIM_CONFIG[key];
+          e.animTimer += dtMs;
 
-          // enemy deals damage on attack damage frame
-          if (e.state === 'attacking' && e.frameIndex === ENEMY_ATTACK_DAMAGE_FRAME && !e.damageDealt) {
-            e.damageDealt = true;
-            if (p.state !== 'dead') {
-              const dx = p.x - e.x, dy = p.y - e.y;
+          while (e.animTimer >= mcfg.frameDuration) {
+            e.animTimer -= mcfg.frameDuration;
+
+            e.frameIndex++;
+
+            /* spawn projectile when animation reaches the spawn frame */
+            if (
+              e.state === 'attacking' &&
+              e.frameIndex === MAGE_PROJECTILE_SPAWN_FRAME &&
+              !e.projectileSpawned
+            ) {
+              e.projectileSpawned = true;
+              const dx  = p.x - e.x;
+              const dy  = p.y - e.y;
               const len = Math.sqrt(dx * dx + dy * dy) || 1;
-              if (len < CONTACT_RADIUS + 10) {
-                p.hp -= ENEMY_DAMAGE;
-                if (p.hp <= 0) {
-                  p.hp = 0;
-                  transitionState(p, 'dead');
+              gs.enemyProjectiles.push({
+                id: gs.uid++,
+                x: e.x, y: e.y,
+                vx: (dx / len) * MAGE_PROJECTILE_SPEED,
+                vy: (dy / len) * MAGE_PROJECTILE_SPEED,
+                radius: MAGE_PROJECTILE_RADIUS,
+                done: false,
+              });
+            }
+
+            if (e.frameIndex >= mcfg.frames) {
+              if (mcfg.loop) {
+                e.frameIndex = 0;
+              } else {
+                e.frameIndex = mcfg.frames - 1; // hold last frame
+                if (e.state === 'attacking') {
+                  /* attack complete → return to running, start cooldown */
+                  e.state          = 'running';
+                  e.frameIndex     = 0;
+                  e.animTimer      = 0;
+                  e.attackCooldown = MAGE_ATTACK_COOLDOWN;
+                } else if (e.state === 'dying') {
+                  e.state = 'dead';
                 }
               }
             }
           }
+        } else {
+          /* ── knight animation (unchanged) ── */
+          const kstate = (e.state === 'dying' ? 'dead' : e.state) as 'running' | 'attacking' | 'dead';
+          const kcfg   = KNIGHT_ANIM_CONFIG[kstate];
+          e.animTimer += dtMs;
 
-          e.frameIndex++;
-          if (e.frameIndex >= cfg.frames) {
-            if (cfg.loop) {
-              e.frameIndex = 0;
-              e.damageDealt = false; // reset for next attack cycle
-            } else {
-              e.frameIndex = cfg.frames - 1; // hold last frame
-              // dead animation finished: mark for removal
+          while (e.animTimer >= kcfg.frameDuration) {
+            e.animTimer -= kcfg.frameDuration;
+
+            // deal damage on designated frame
+            if (e.state === 'attacking' && e.frameIndex === KNIGHT_ATTACK_DAMAGE_FRAME && !e.damageDealt) {
+              e.damageDealt = true;
+              if (p.state !== 'dead') {
+                const dx  = p.x - e.x;
+                const dy  = p.y - e.y;
+                const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                if (len < CONTACT_RADIUS + 10 && !p.shieldActive) {
+                  p.hp -= ENEMY_DAMAGE;
+                  if (p.hp <= 0) {
+                    p.hp = 0;
+                    transitionState(p, 'dead');
+                  }
+                }
+              }
+            }
+
+            e.frameIndex++;
+            if (e.frameIndex >= kcfg.frames) {
+              if (kcfg.loop) {
+                e.frameIndex  = 0;
+                e.damageDealt = false; // reset for next attack cycle
+              } else {
+                e.frameIndex = kcfg.frames - 1; // hold last frame
+              }
             }
           }
         }
       }
 
-      /* remove enemies whose death animation has finished */
+      /* ── remove finished enemies ── */
       gs.enemies = gs.enemies.filter(e => {
-        if (e.state !== 'dead') return true;
-        return e.frameIndex < ENEMY_ANIM_CONFIG.dead.frames - 1;
+        if (e.type === 'mage') {
+          // mage is removed once state reaches 'dead' (set at end of dying anim)
+          return e.state !== 'dead';
+        } else {
+          // knight: dead state plays anim then holds last frame → remove at last frame
+          if (e.state !== 'dead') return true;
+          return e.frameIndex < KNIGHT_ANIM_CONFIG.dead.frames - 1;
+        }
       });
+
+      /* ── update enemy projectiles ── */
+      for (const proj of gs.enemyProjectiles) {
+        proj.x += proj.vx * dt;
+        proj.y += proj.vy * dt;
+
+        /* off-screen → discard */
+        if (proj.x < -60 || proj.x > W + 60 || proj.y < -60 || proj.y > H + 60) {
+          proj.done = true;
+          continue;
+        }
+
+        /* collision with player */
+        if (!proj.done && p.state !== 'dead') {
+          if (dist2(proj.x, proj.y, p.x, p.y) < (proj.radius + PLAYER_RADIUS) ** 2) {
+            proj.done = true;
+            burst(gs, proj.x, proj.y, '#ce93d8', 4);
+            if (!p.shieldActive) {
+              p.hp -= MAGE_PROJECTILE_DAMAGE;
+              if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
+            }
+          }
+        }
+      }
+      gs.enemyProjectiles = gs.enemyProjectiles.filter(proj => !proj.done);
 
       /* ── spawn ── */
       const rate = Math.max(SPAWN_RATE_MIN, SPAWN_RATE_START - (GAME_DURATION - gs.timer) * 17);
@@ -548,7 +817,11 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       }
       ctx.globalAlpha = 1;
 
-      for (const e of gs.enemies) drawEnemy(e);
+      for (const e of gs.enemies) {
+        if (e.type === 'mage') drawMage(e);
+        else drawKnight(e);
+      }
+      drawProjectiles(gs.enemyProjectiles);
       drawPlayer(p);
       drawHUD(gs);
 
@@ -562,19 +835,28 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       const gs = gsRef.current;
       if (gs) {
         gs.keys[e.code] = true;
-        /* spacebar → melee attack */
         const p = gs.player;
-        if (
-          e.code === 'Space' &&
-          p.state !== 'attacking' &&
-          p.state !== 'dead' &&
-          p.attackCooldown <= 0
-        ) {
+        const canAttack = p.state !== 'attacking' && p.state !== 'dead' && p.attackCooldown <= 0;
+
+        /* SPACE → melee attack */
+        if (e.code === 'Space' && canAttack) {
           transitionState(p, 'attacking');
           p.attackCooldown = ATTACK_COOLDOWN;
         }
+        /* SHIFT → shield */
+        if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') &&
+            !p.shieldActive && p.shieldCooldown <= 0 && p.state !== 'dead') {
+          p.shieldActive = true;
+          p.shieldTimer  = SHIELD_DURATION;
+        }
       }
-      if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))
+      /* F → toggle fullscreen */
+      if (e.code === 'KeyF') {
+        const root = rootRef.current;
+        if (!document.fullscreenElement) root?.requestFullscreen();
+        else document.exitFullscreen();
+      }
+      if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code))
         e.preventDefault();
     };
     const onUp = (e: KeyboardEvent) => {
@@ -588,11 +870,12 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup',   onUp);
     };
-  }, [makeGS]);
+  }, [makeGS, started]);
 
   /* ─── render ─────────────────────────────────────────────── */
   return (
     <div
+      ref={rootRef}
       style={{
         position: 'relative',
         width: '100%', height: '580px',
@@ -609,7 +892,53 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         style={{ width: '100%', height: '100%', display: 'block', outline: 'none' }}
       />
 
-      {!result && (
+      {/* ── start overlay ── */}
+      {!started && !result && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(5,5,12,0.82)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: '20px',
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            fontSize: '2.2rem', fontWeight: 900,
+            letterSpacing: '6px', fontFamily: 'monospace',
+            color: '#00e5ff',
+            textShadow: '0 0 40px rgba(0,229,255,0.5)',
+          }}>
+            RAID MODE
+          </div>
+          <div style={{
+            color: 'rgba(255,255,255,0.4)',
+            fontSize: '12px', fontFamily: 'monospace',
+            letterSpacing: '1px',
+          }}>
+            WASD move · SPACE attack · SHIFT shield · F fullscreen
+          </div>
+          <button
+            onClick={() => setStarted(true)}
+            style={{
+              marginTop: '8px',
+              padding: '14px 48px',
+              background: 'linear-gradient(135deg, #00bcd4, #00838f)',
+              border: 'none', borderRadius: '8px',
+              color: '#fff', fontSize: '14px',
+              fontWeight: 700, letterSpacing: '3px',
+              cursor: 'pointer', fontFamily: 'monospace',
+              boxShadow: '0 4px 28px rgba(0,188,212,0.4)',
+              transition: 'transform 0.15s ease',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            START
+          </button>
+        </div>
+      )}
+
+      {started && !result && (
         <div style={{
           position: 'absolute', bottom: 14, left: '50%',
           transform: 'translateX(-50%)',
@@ -618,7 +947,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
           userSelect: 'none', pointerEvents: 'none',
           letterSpacing: '0.5px',
         }}>
-          WASD / Arrows to move · SPACE to melee attack
+          WASD move · SPACE attack · SHIFT shield · F fullscreen
         </div>
       )}
 

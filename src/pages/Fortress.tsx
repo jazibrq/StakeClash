@@ -1,52 +1,67 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
-import { FortressResourceDistrict } from '@/components/FortressResourceDistrict';
+import { FortressResourceDistrict, Resources } from '@/components/FortressResourceDistrict';
 import { Button } from '@/components/ui/button';
 import { TransactionModal } from '@/components/modals/TransactionModal';
-import {
-  Wallet, TrendingUp, Gift, CheckCircle2,
-  ArrowUpRight, ArrowDownRight, RefreshCw, Calendar,
-} from 'lucide-react';
+import { useWalletContext } from '@/contexts/WalletContext';
+import { Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 
-/* ─── Mock data ─────────────────────────────────────────────────── */
-const yieldData = [
-  { date: 'Jan', yield: 0.5 },
-  { date: 'Feb', yield: 1.2 },
-  { date: 'Mar', yield: 1.8 },
-  { date: 'Apr', yield: 2.1 },
-  { date: 'May', yield: 2.9 },
-  { date: 'Jun', yield: 3.4 },
-  { date: 'Jul', yield: 4.2 },
-];
+type Resource = 'ore' | 'gold' | 'diamond' | 'mana';
+type Level = 1 | 2 | 3;
+
+/* Production rates per second (mirrors FortressResourceDistrict) */
+const PROD_PER_SEC: Record<Resource, number> = {
+  ore:     2   / 3600,
+  gold:    1.5 / 3600,
+  diamond: 0.5 / 3600,
+  mana:    0.8 / 3600,
+};
 
 const matchHistory = [
-  { date: '2024-01-15', opponent: '0x5e6f...7g8h', size: 4, result: 'Won',  awards: '+0.45' },
-  { date: '2024-01-14', opponent: '0x9i0j...1k2l', size: 2, result: 'Lost', awards: '-0.00' },
-  { date: '2024-01-13', opponent: '0x3m4n...5o6p', size: 8, result: 'Won',  awards: '+1.20' },
-  { date: '2024-01-12', opponent: '0x7q8r...9s0t', size: 4, result: 'Won',  awards: '+0.38' },
-  { date: '2024-01-11', opponent: '0x1u2v...3w4x', size: 2, result: 'Lost', awards: '-0.00' },
+  { date: '2024-01-15', opponent: '0x5e6f...7g8h', size: 4,  result: 'Won',  awards: '+0.45' },
+  { date: '2024-01-14', opponent: '0x9i0j...1k2l', size: 2,  result: 'Lost', awards: '-0.00' },
+  { date: '2024-01-13', opponent: '0x3m4n...5o6p', size: 8,  result: 'Won',  awards: '+1.20' },
+  { date: '2024-01-12', opponent: '0x7q8r...9s0t', size: 4,  result: 'Won',  awards: '+0.38' },
+  { date: '2024-01-11', opponent: '0x1u2v...3w4x', size: 2,  result: 'Lost', awards: '-0.00' },
 ];
 
 const vaultActivity = [
-  { date: '2024-01-15', type: 'Deposit',  amount: '+2.00', status: 'Confirmed', tx: '0xabc...123' },
-  { date: '2024-01-10', type: 'Redeem',   amount: '+0.85', status: 'Confirmed', tx: '0xdef...456' },
-  { date: '2024-01-05', type: 'Deposit',  amount: '+5.00', status: 'Confirmed', tx: '0xghi...789' },
-  { date: '2024-01-01', type: 'Withdraw', amount: '-1.50', status: 'Confirmed', tx: '0xjkl...012' },
+  { date: '2024-01-15', type: 'Deposit',  amount: '+2.00', tx: '0xabc...123' },
+  { date: '2024-01-10', type: 'Withdraw', amount: '-0.85', tx: '0xdef...456' },
+  { date: '2024-01-05', type: 'Deposit',  amount: '+5.00', tx: '0xghi...789' },
 ];
-
-const timeRanges = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
 
 /* ─── Page ──────────────────────────────────────────────────────── */
 const Fortress = () => {
-  const [modalType, setModalType] = useState<'deposit' | 'withdraw' | 'redeem' | null>(null);
-  const [activeTab, setActiveTab] = useState<'matches' | 'vault'>('matches');
-  const [timeRange, setTimeRange] = useState('1M');
+  const wallet = useWalletContext();
+
+  const [modalType, setModalType]   = useState<'deposit' | 'withdraw' | null>(null);
+  const [activeTab, setActiveTab]   = useState<'matches' | 'vault'>('matches');
+  const [resources, setResources]   = useState<Resources>({ ore: 0, gold: 0, diamond: 0, mana: 0 });
+
+  /* Accumulate resources over time (replaced by real wallet data when available) */
+  useEffect(() => {
+    const id = setInterval(() => {
+      setResources(prev => ({
+        ore:     prev.ore     + PROD_PER_SEC.ore,
+        gold:    prev.gold    + PROD_PER_SEC.gold,
+        diamond: prev.diamond + PROD_PER_SEC.diamond,
+        mana:    prev.mana    + PROD_PER_SEC.mana,
+      }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleLevelChange = (_resource: Resource, _level: Level) => {
+    /* Could trigger a toast / contract call here */
+  };
+
+  /* Mock wallet-derived values (swap for real contract reads) */
+  const deposited  = wallet?.address ? '12.50 ETH' : '—';
+  const yieldEarned = wallet?.address ? '4.28 ETH'  : '—';
 
   return (
     <div className="h-screen overflow-hidden">
@@ -54,257 +69,137 @@ const Fortress = () => {
       <GrainOverlay />
       <Navigation />
 
-      {/* Full-height layout below nav */}
       <div
-        className="relative z-10 flex gap-5 px-6"
-        style={{ height: 'calc(100vh - 6rem)', paddingTop: '6rem' }}
+        className="relative z-10 flex gap-4 px-4"
+        style={{ height: 'calc(100vh - 5rem)', paddingTop: '5rem' }}
       >
-        {/* ── Left: square video grid ───────────────────────────── */}
+        {/* ── Fortress grid (dominant) ─────────────────────────── */}
         <div
-          className="flex-shrink-0 rounded-2xl overflow-hidden"
+          className="rounded-xl overflow-hidden flex-1"
           style={{
-            height: '100%',
-            aspectRatio: '1 / 1',
+            minWidth: 0,
             background: '#000',
             boxShadow: '0 0 0 1px rgba(255,255,255,0.07), 0 8px 32px rgba(0,0,0,0.8)',
           }}
         >
-          <FortressResourceDistrict />
+          <FortressResourceDistrict
+            resources={resources}
+            onLevelChange={handleLevelChange}
+          />
         </div>
 
-        {/* ── Right: portfolio sidebar ──────────────────────────── */}
-        <div className="flex-1 overflow-y-auto pb-6 space-y-4 min-w-0">
-
-          {/* Metric strip */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Deposited', value: '12.50 ETH', sub: '≈ $31,250',  icon: <Wallet className="w-4 h-4" /> },
-              { label: 'Yield',     value: '4.28 ETH',  sub: 'All-time',   icon: <TrendingUp className="w-4 h-4" /> },
-              { label: 'Pending',   value: '2.03 ETH',  sub: 'Redeem now', icon: <Gift className="w-4 h-4" /> },
-              { label: 'Redeemed',  value: '6.45 ETH',  sub: 'Lifetime',   icon: <CheckCircle2 className="w-4 h-4" /> },
-            ].map((m) => (
-              <div key={m.label} className="card-surface rounded-xl p-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  {m.icon}
-                  <span className="text-xs uppercase tracking-wide">{m.label}</span>
-                </div>
-                <p className="font-mono font-semibold text-base">{m.value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{m.sub}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Vault card */}
-          <div className="card-surface rounded-xl p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide mb-4">Your Vault</h2>
-            <div className="space-y-3 mb-5">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Balance</span>
-                <span className="font-mono font-semibold">12.50 ETH</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Yield Earned</span>
-                <span className="font-mono text-primary">+4.28 ETH</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Pending</span>
-                <span className="font-mono text-amber-400">2.03 ETH</span>
-              </div>
+        {/* ── Slim sidebar ─────────────────────────────────────── */}
+        <div
+          className="flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-4"
+          style={{ width: '240px' }}
+        >
+          {/* Wallet metrics */}
+          <div className="card-surface rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Wallet className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-wide font-medium">Vault</span>
             </div>
             <div className="space-y-2">
-              <Button onClick={() => setModalType('deposit')} className="w-full btn-cyan-gradient text-sm h-9">
-                Deposit
-              </Button>
-              <Button onClick={() => setModalType('withdraw')} variant="outline" className="w-full btn-outline-glow text-sm h-9">
-                Withdraw
-              </Button>
-              <Button
-                onClick={() => setModalType('redeem')}
-                variant="outline"
-                className="w-full text-sm h-9 border-amber-500/30 text-amber-400 hover:border-amber-500/50 hover:bg-amber-500/10"
-              >
-                Redeem Awards
-              </Button>
-            </div>
-          </div>
-
-          {/* APY */}
-          <div className="card-surface rounded-xl p-4 flex items-center gap-3">
-            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Current APY</p>
-              <p className="text-xs text-muted-foreground">~8% baseline yield</p>
-            </div>
-            <span className="font-mono text-lg text-primary">8.2%</span>
-          </div>
-
-          {/* Yield chart */}
-          <div className="card-surface rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide">Yield Over Time</h2>
-              <div className="flex gap-1 bg-black/40 p-0.5 rounded-md">
-                {timeRanges.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setTimeRange(r)}
-                    className={cn(
-                      'px-2 py-1 text-xs rounded transition-all',
-                      timeRange === r ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {r}
-                  </button>
-                ))}
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Deposited</span>
+                <span className="font-mono text-sm font-semibold">{deposited}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground">Yield</span>
+                <span className="font-mono text-sm text-primary">{yieldEarned}</span>
               </div>
             </div>
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={yieldData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 15% 14%)" />
-                  <XAxis dataKey="date" stroke="hsl(215 15% 45%)" fontSize={11} />
-                  <YAxis stroke="hsl(215 15% 45%)" fontSize={11} tickFormatter={(v) => `${v}`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0a0a0a',
-                      border: '1px solid #1F2937',
-                      borderRadius: '8px',
-                    }}
-                    labelStyle={{ color: '#f9fafb' }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="yield"
-                    stroke="hsl(0 84% 60%)"
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(0 84% 60%)', strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: 'hsl(0 84% 60%)' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="space-y-1.5 pt-1">
+              <Button
+                onClick={() => setModalType('deposit')}
+                className="w-full btn-cyan-gradient text-xs h-8"
+              >
+                Deposit
+              </Button>
+              <Button
+                onClick={() => setModalType('withdraw')}
+                variant="outline"
+                className="w-full text-xs h-8"
+              >
+                Withdraw
+              </Button>
             </div>
-            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border">
-              {[['Today', '+0.012 ETH'], ['This Week', '+0.089 ETH'], ['All Time', '+4.28 ETH']].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-                  <p className="font-mono text-sm text-primary">{val}</p>
+          </div>
+
+          {/* Resource counters */}
+          <div className="card-surface rounded-xl p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-3">
+              Resources
+            </p>
+            <div className="space-y-2">
+              {(['ore','gold','diamond','mana'] as Resource[]).map(r => (
+                <div key={r} className="flex justify-between items-center">
+                  <span className="text-xs capitalize text-muted-foreground">{r}</span>
+                  <span className="font-mono text-xs">{Math.floor(resources[r])}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Activity tabs */}
-          <div className="card-surface rounded-xl p-5">
-            <div className="flex gap-5 mb-4 border-b border-border relative">
-              <div
-                className="absolute bottom-0 h-0.5 bg-primary rounded-full transition-all duration-300 ease-out"
-                style={{
-                  left: activeTab === 'matches' ? 0 : 'calc(50% + 8px)',
-                  width: activeTab === 'matches' ? '90px' : '80px',
-                }}
-              />
-              {(['matches', 'vault'] as const).map((tab) => (
+          <div className="card-surface rounded-xl p-4 flex-1 min-h-0">
+            <div className="flex gap-4 mb-3 border-b border-border pb-2">
+              {(['matches', 'vault'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    'pb-3 text-xs font-medium uppercase tracking-wide transition-colors',
+                    'text-xs font-medium uppercase tracking-wide transition-colors',
                     activeTab === tab ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {tab === 'matches' ? 'Match History' : 'Vault Activity'}
+                  {tab === 'matches' ? 'Matches' : 'Vault'}
                 </button>
               ))}
             </div>
 
             {activeTab === 'matches' && (
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    {['Date', 'Opponent', 'Size', 'Result', 'Awards'].map((h, i) => (
-                      <th key={h} className={cn('pb-2 text-xs font-medium text-muted-foreground uppercase', i === 4 && 'text-right')}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {matchHistory.map((m, i) => (
-                    <tr key={i} className="row-hover border-t border-border">
-                      <td className="py-2 text-xs text-muted-foreground">{m.date}</td>
-                      <td className="py-2 font-mono text-xs">{m.opponent}</td>
-                      <td className="py-2 text-xs">{m.size}p</td>
-                      <td className={cn('py-2 text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
+              <div className="space-y-2">
+                {matchHistory.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
+                    <div>
+                      <p className="text-xs font-mono">{m.opponent}</p>
+                      <p className="text-xs text-muted-foreground">{m.date} · {m.size}p</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
                         {m.result}
-                      </td>
-                      <td className={cn('py-2 text-right font-mono text-xs', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
-                        {m.awards} ETH
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </p>
+                      <p className={cn('text-xs font-mono', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
+                        {m.awards}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
 
             {activeTab === 'vault' && (
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    {['Date', 'Type', 'Amount', 'Status', 'Tx'].map((h, i) => (
-                      <th key={h} className={cn('pb-2 text-xs font-medium text-muted-foreground uppercase', i === 4 && 'text-right')}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {vaultActivity.map((a, i) => (
-                    <tr key={i} className="row-hover border-t border-border">
-                      <td className="py-2 text-xs text-muted-foreground">{a.date}</td>
-                      <td className="py-2">
-                        <span className={cn(
-                          'inline-flex items-center gap-1 text-xs',
-                          a.type === 'Deposit' && 'text-primary',
-                          a.type === 'Withdraw' && 'text-muted-foreground',
-                          a.type === 'Redeem' && 'text-amber-400',
-                        )}>
-                          {a.type === 'Deposit'  && <ArrowUpRight className="w-3 h-3" />}
-                          {a.type === 'Withdraw' && <ArrowDownRight className="w-3 h-3" />}
-                          {a.type === 'Redeem'   && <RefreshCw className="w-3 h-3" />}
-                          {a.type}
-                        </span>
-                      </td>
-                      <td className="py-2 font-mono text-xs">{a.amount} ETH</td>
-                      <td className="py-2 text-xs text-emerald-400">{a.status}</td>
-                      <td className="py-2 text-right font-mono text-xs text-muted-foreground">{a.tx}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="space-y-2">
+                {vaultActivity.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
+                    <div className="flex items-center gap-1.5">
+                      {a.type === 'Deposit'
+                        ? <ArrowUpRight className="w-3 h-3 text-primary" />
+                        : <ArrowDownRight className="w-3 h-3 text-muted-foreground" />}
+                      <div>
+                        <p className="text-xs font-medium">{a.type}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{a.tx}</p>
+                      </div>
+                    </div>
+                    <p className={cn('text-xs font-mono', a.amount.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
+                      {a.amount}
+                    </p>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-
-          {/* Pending awards */}
-          <div className="card-surface rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Gift className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-semibold uppercase tracking-wide">Pending Awards</h3>
-            </div>
-            <p className="text-2xl font-bold font-mono text-amber-400 mb-1">2.03 ETH</p>
-            <p className="text-xs text-muted-foreground mb-4">Ready to redeem into vault balance</p>
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Pending</span><span>Redeemed</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-black overflow-hidden">
-                <div className="h-full bg-amber-400 rounded-full" style={{ width: '24%' }} />
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-amber-400">2.03 ETH</span>
-                <span className="text-muted-foreground">6.45 ETH</span>
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -313,7 +208,7 @@ const Fortress = () => {
           open={!!modalType}
           onClose={() => setModalType(null)}
           type={modalType}
-          maxAmount={modalType === 'redeem' ? '2.03' : '12.50'}
+          maxAmount="12.50"
         />
       )}
     </div>

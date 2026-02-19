@@ -1,70 +1,359 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 
 type Resource = 'ore' | 'gold' | 'diamond' | 'mana';
 type Level = 1 | 2 | 3;
 
-const resources: Resource[] = ['ore', 'gold', 'diamond', 'mana'];
+/* ─── Stats config ─────────────────────────────────────────────── */
+interface StatLine { label: string; value: string; delta?: string; }
+interface LevelSpec {
+  stats: StatLine[];
+  requires?: { resource: Resource; label: string; amount: number }[];
+}
+interface FortressConfig {
+  name: string;
+  color: string;         // accent colour for UI
+  levels: Record<Level, LevelSpec>;
+}
 
-/* ─── Individual resource panel (fills its grid cell) ──────────── */
-const ResourcePanel = memo(({ resource }: { resource: Resource }) => {
-  const [level, setLevel] = useState<Level>(1);
-  const src = `/animations/${resource}${level}.mp4`;
+const FORTRESS_CONFIG: Record<Resource, FortressConfig> = {
+  ore: {
+    name: 'Ore Mine',
+    color: '#a0a0a0',
+    levels: {
+      1: {
+        stats: [
+          { label: 'Production',  value: '+2 ore/hr' },
+          { label: 'Defense',     value: '10' },
+          { label: 'HP',          value: '100' },
+        ],
+      },
+      2: {
+        stats: [
+          { label: 'Production',  value: '+5 ore/hr',  delta: '+3' },
+          { label: 'Defense',     value: '15',          delta: '+5' },
+          { label: 'HP',          value: '150',         delta: '+50' },
+        ],
+        requires: [
+          { resource: 'ore',  label: 'Ore',  amount: 50 },
+          { resource: 'gold', label: 'Gold', amount: 20 },
+        ],
+      },
+      3: {
+        stats: [
+          { label: 'Production',  value: '+10 ore/hr', delta: '+5' },
+          { label: 'Defense',     value: '25',          delta: '+10' },
+          { label: 'HP',          value: '250',         delta: '+100' },
+        ],
+        requires: [
+          { resource: 'ore',     label: 'Ore',     amount: 150 },
+          { resource: 'gold',    label: 'Gold',    amount: 60  },
+          { resource: 'diamond', label: 'Diamond', amount: 10  },
+        ],
+      },
+    },
+  },
+  gold: {
+    name: 'Gold Vault',
+    color: '#f59e0b',
+    levels: {
+      1: {
+        stats: [
+          { label: 'Production',    value: '+1.5 gold/hr' },
+          { label: 'Attack Boost',  value: '5%' },
+          { label: 'Capacity',      value: '200 gold' },
+        ],
+      },
+      2: {
+        stats: [
+          { label: 'Production',    value: '+3 gold/hr',   delta: '+1.5' },
+          { label: 'Attack Boost',  value: '12%',           delta: '+7%' },
+          { label: 'Capacity',      value: '350 gold',      delta: '+150' },
+        ],
+        requires: [
+          { resource: 'ore',  label: 'Ore',  amount: 80 },
+          { resource: 'gold', label: 'Gold', amount: 30 },
+        ],
+      },
+      3: {
+        stats: [
+          { label: 'Production',    value: '+6 gold/hr',  delta: '+3' },
+          { label: 'Attack Boost',  value: '20%',          delta: '+8%' },
+          { label: 'Capacity',      value: '600 gold',     delta: '+250' },
+        ],
+        requires: [
+          { resource: 'ore',  label: 'Ore',  amount: 200 },
+          { resource: 'gold', label: 'Gold', amount: 100 },
+          { resource: 'mana', label: 'Mana', amount: 20  },
+        ],
+      },
+    },
+  },
+  diamond: {
+    name: 'Diamond Forge',
+    color: '#38bdf8',
+    levels: {
+      1: {
+        stats: [
+          { label: 'Production',  value: '+0.5 diamond/hr' },
+          { label: 'Crit Chance', value: '5%' },
+          { label: 'Armor',       value: '8' },
+        ],
+      },
+      2: {
+        stats: [
+          { label: 'Production',  value: '+1.2 diamond/hr', delta: '+0.7' },
+          { label: 'Crit Chance', value: '12%',              delta: '+7%' },
+          { label: 'Armor',       value: '18',               delta: '+10' },
+        ],
+        requires: [
+          { resource: 'ore',     label: 'Ore',     amount: 100 },
+          { resource: 'gold',    label: 'Gold',    amount: 40  },
+          { resource: 'diamond', label: 'Diamond', amount: 5   },
+        ],
+      },
+      3: {
+        stats: [
+          { label: 'Production',  value: '+2.5 diamond/hr', delta: '+1.3' },
+          { label: 'Crit Chance', value: '22%',              delta: '+10%' },
+          { label: 'Armor',       value: '35',               delta: '+17' },
+        ],
+        requires: [
+          { resource: 'ore',     label: 'Ore',     amount: 300 },
+          { resource: 'gold',    label: 'Gold',    amount: 120 },
+          { resource: 'diamond', label: 'Diamond', amount: 25  },
+        ],
+      },
+    },
+  },
+  mana: {
+    name: 'Mana Sanctum',
+    color: '#a855f7',
+    levels: {
+      1: {
+        stats: [
+          { label: 'Production',  value: '+0.8 mana/hr' },
+          { label: 'Spell Power', value: '10%' },
+          { label: 'Regen',       value: '2/min' },
+        ],
+      },
+      2: {
+        stats: [
+          { label: 'Production',  value: '+2 mana/hr',  delta: '+1.2' },
+          { label: 'Spell Power', value: '22%',          delta: '+12%' },
+          { label: 'Regen',       value: '5/min',        delta: '+3' },
+        ],
+        requires: [
+          { resource: 'ore',     label: 'Ore',     amount: 60 },
+          { resource: 'gold',    label: 'Gold',    amount: 25 },
+          { resource: 'diamond', label: 'Diamond', amount: 3  },
+        ],
+      },
+      3: {
+        stats: [
+          { label: 'Production',  value: '+4 mana/hr',  delta: '+2' },
+          { label: 'Spell Power', value: '38%',          delta: '+16%' },
+          { label: 'Regen',       value: '10/min',       delta: '+5' },
+        ],
+        requires: [
+          { resource: 'ore',     label: 'Ore',     amount: 180 },
+          { resource: 'gold',    label: 'Gold',    amount: 80  },
+          { resource: 'diamond', label: 'Diamond', amount: 20  },
+          { resource: 'mana',    label: 'Mana',    amount: 15  },
+        ],
+      },
+    },
+  },
+};
+
+/* ─── Shared resource state ────────────────────────────────────── */
+/* In a real app this comes from the wallet / contract. For now we
+   accumulate mock resources over time at a fixed rate.            */
+export type Resources = Record<Resource, number>;
+
+const PRODUCTION_PER_SEC: Record<Resource, number> = {
+  ore:     2   / 3600,
+  gold:    1.5 / 3600,
+  diamond: 0.5 / 3600,
+  mana:    0.8 / 3600,
+};
+
+/* ─── Tooltip ──────────────────────────────────────────────────── */
+const Tooltip = ({
+  resource, level, resources,
+}: { resource: Resource; level: Level; resources: Resources }) => {
+  const cfg   = FORTRESS_CONFIG[resource];
+  const spec  = cfg.levels[level];
+  const nextL = (level + 1) as Level;
+  const next  = level < 3 ? cfg.levels[nextL] : null;
 
   return (
-    <div className="relative bg-black overflow-hidden w-full h-full">
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: 'rgba(5,5,12,0.88)',
+      backdropFilter: 'blur(6px)',
+      display: 'flex', flexDirection: 'column',
+      padding: '18px', gap: '10px',
+      zIndex: 20, pointerEvents: 'none',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: cfg.color, flexShrink: 0,
+          boxShadow: `0 0 8px ${cfg.color}`,
+        }} />
+        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '13px', color: cfg.color }}>
+          {cfg.name}
+        </span>
+        <span style={{
+          marginLeft: 'auto', fontFamily: 'monospace', fontSize: '11px',
+          color: 'rgba(255,255,255,0.4)', letterSpacing: '1px',
+        }}>
+          LV {level}
+        </span>
+      </div>
+
+      {/* Current stats */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {spec.stats.map(s => (
+          <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+            <span style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</span>
+            <span style={{ fontFamily: 'monospace', color: '#fff' }}>{s.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Next level upgrade */}
+      {next && (
+        <>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
+            LEVEL {nextL} UPGRADES
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {next.stats.filter(s => s.delta).map(s => (
+              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                <span style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</span>
+                <span style={{ fontFamily: 'monospace', color: '#4ade80' }}>+{s.delta?.replace('+', '')}</span>
+              </div>
+            ))}
+          </div>
+          {/* Requirements */}
+          {next.requires && (
+            <>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
+                REQUIRES
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {next.requires.map(r => {
+                  const have  = resources[r.resource];
+                  const met   = have >= r.amount;
+                  return (
+                    <div key={r.resource} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.45)' }}>{r.label}</span>
+                      <span style={{ fontFamily: 'monospace', color: met ? '#4ade80' : '#f87171' }}>
+                        {Math.floor(have)} / {r.amount}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {level === 3 && (
+        <div style={{ fontSize: '11px', color: cfg.color, fontFamily: 'monospace', marginTop: 'auto' }}>
+          MAX LEVEL
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── Individual resource panel ────────────────────────────────── */
+const ResourcePanel = memo(({
+  resource, resources, onLevelChange,
+}: {
+  resource: Resource;
+  resources: Resources;
+  onLevelChange: (r: Resource, l: Level) => void;
+}) => {
+  const [level, setLevel] = useState<Level>(1);
+  const [hovered, setHovered] = useState(false);
+  const levelRef = useRef(level);
+  levelRef.current = level;
+
+  const src = `/animations/${resource}${level}.mp4`;
+  const cfg = FORTRESS_CONFIG[resource];
+
+  /* auto-level when resources meet the next level's requirement */
+  useEffect(() => {
+    if (levelRef.current >= 3) return;
+    const nextL = (levelRef.current + 1) as Level;
+    const requires = cfg.levels[nextL].requires ?? [];
+    const allMet = requires.every(r => resources[r.resource] >= r.amount);
+    if (allMet) {
+      setLevel(nextL);
+      onLevelChange(resource, nextL);
+    }
+  }, [resources, cfg, resource, onLevelChange]);
+
+  return (
+    <div
+      className="relative bg-black overflow-hidden w-full h-full"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <video
         key={src}
         src={src}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          objectPosition: 'center',
-        }}
+        autoPlay muted loop playsInline preload="auto"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
       />
 
-      {/* Level dropdown — top-right */}
-      <div className="absolute top-2 right-2 z-10">
-        <select
-          value={level}
-          onChange={(e) => setLevel(Number(e.target.value) as Level)}
-          style={{
-            background: 'rgba(0,0,0,0.75)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            color: '#fff',
-            borderRadius: '6px',
-            padding: '2px 22px 2px 8px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ffffff'/%3E%3C/svg%3E")`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 7px center',
-          }}
-        >
-          <option value={1}>Lv 1</option>
-          <option value={2}>Lv 2</option>
-          <option value={3}>Lv 3</option>
-        </select>
+      {/* Level badge */}
+      <div style={{
+        position: 'absolute', top: 10, left: 10, zIndex: 10,
+        background: 'rgba(0,0,0,0.7)',
+        border: `1px solid ${cfg.color}55`,
+        borderRadius: '6px',
+        padding: '2px 10px',
+        fontFamily: 'monospace', fontSize: '11px',
+        color: cfg.color, fontWeight: 700, letterSpacing: '1px',
+      }}>
+        LV {level}
       </div>
+
+      {/* Name badge */}
+      <div style={{
+        position: 'absolute', bottom: 10, left: 10, zIndex: 10,
+        fontFamily: 'monospace', fontSize: '11px',
+        color: 'rgba(255,255,255,0.55)', letterSpacing: '0.5px',
+      }}>
+        {cfg.name}
+      </div>
+
+      {/* Hover tooltip */}
+      {hovered && (
+        <Tooltip resource={resource} level={level} resources={resources} />
+      )}
     </div>
   );
 });
 ResourcePanel.displayName = 'ResourcePanel';
 
-/* ─── 2×2 grid — fills its parent container ────────────────────── */
-export const FortressResourceDistrict: React.FC = () => (
+/* ─── 2×2 grid ─────────────────────────────────────────────────── */
+const resources: Resource[] = ['ore', 'gold', 'diamond', 'mana'];
+
+export const FortressResourceDistrict: React.FC<{
+  resources: Resources;
+  onLevelChange: (r: Resource, l: Level) => void;
+}> = ({ resources: res, onLevelChange }) => (
   <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-px bg-black">
     {resources.map((r) => (
-      <ResourcePanel key={r} resource={r} />
+      <ResourcePanel key={r} resource={r} resources={res} onLevelChange={onLevelChange} />
     ))}
   </div>
 );
