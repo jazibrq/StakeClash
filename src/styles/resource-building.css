@@ -1,0 +1,520 @@
+/* ================================================
+   RESOURCE BUILDING - COMPONENT STYLES
+   ================================================ */
+
+.resource-building {
+  position: relative;
+  width: 280px;
+  height: 320px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.6));
+}
+
+.resource-building:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.8));
+}
+
+/* ================================================
+   BUILDING CONTENT & SVG
+   ================================================ */
+
+.building-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.building-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+  position: relative;
+  z-index: 2;
+}
+
+/* ================================================
+   RESOURCE COUNTER/UI
+   ================================================ */
+
+.resource-counter {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(60, 50, 40, 0.9), rgba(40, 30, 20, 0.95));
+  border: 2px solid var(--building-color, #3b82f6);
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-align: center;
+  z-index: 10;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+  backdrop-filter: blur(8px);
+  min-width: 120px;
+}
+
+.counter-value {
+  font-size: 1.4rem;
+  color: #fef3c7;
+  line-height: 1;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+.counter-symbol {
+  font-size: 0.75rem;
+  color: var(--building-color, #3b82f6);
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.yield-rate {
+  font-size: 0.7rem;
+  color: #b8a087;
+  letter-spacing: 0.5px;
+  font-style: italic;
+}
+
+/* ================================================
+   CLICK ZONE
+   ================================================ */
+
+.building-click-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ================================================
+   BUILDING-SPECIFIC ANIMATIONS
+   ================================================ */
+
+/* MANA - Wizard Tower Animations */
+
+.magical-orb {
+  animation: orb-float 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.resource-building:hover .magical-orb {
+  animation: orb-float 3s ease-in-out infinite, orb-glow-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes orb-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes orb-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(59, 130, 246, 1));
+  }
+}
+
+.energy-pulse {
+  animation: energy-draw 2s ease-in-out infinite;
+  transform-origin: 100px 47px;
+}
+
+@keyframes energy-draw {
+  0%, 100% {
+    stroke-dashoffset: 0;
+    opacity: 0.3;
+  }
+  50% {
+    stroke-dashoffset: 30;
+    opacity: 0.8;
+  }
+}
+
+.magic-particle {
+  animation: particle-rise 2s ease-in-out infinite;
+}
+
+.magic-particle:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.magic-particle:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.magic-particle:nth-child(3) {
+  animation-delay: 1s;
+}
+
+@keyframes particle-rise {
+  0% {
+    transform: translateY(0);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-40px);
+    opacity: 0;
+  }
+}
+
+.mage-character {
+  animation: mage-pace 4s ease-in-out infinite;
+}
+
+@keyframes mage-pace {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(8px);
+  }
+}
+
+/* GOLD - Treasury Building Animations */
+
+.torch-flame {
+  filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.4));
+}
+
+.flame-left,
+.flame-right {
+  animation: torch-flicker 1.5s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.flame-left {
+  animation-delay: 0s;
+}
+
+.flame-right {
+  animation-delay: 0.3s;
+}
+
+@keyframes torch-flicker {
+  0%, 100% {
+    transform: scaleY(1) translateX(0);
+  }
+  25% {
+    transform: scaleY(1.1) translateX(-2px);
+  }
+  50% {
+    transform: scaleY(0.95) translateX(1px);
+  }
+  75% {
+    transform: scaleY(1.05) translateX(-1px);
+  }
+}
+
+.gold-coins {
+  transition: all 0.3s ease;
+}
+
+.gold-coins.shimmer circle {
+  animation: coin-sparkle 0.8s ease-in-out infinite;
+}
+
+.gold-coins.shimmer circle:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.gold-coins.shimmer circle:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.gold-coins.shimmer circle:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.gold-coins.shimmer circle:nth-child(4) {
+  animation-delay: 0.1s;
+}
+
+.gold-coins.shimmer circle:nth-child(5) {
+  animation-delay: 0.3s;
+}
+
+@keyframes coin-sparkle {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.3) drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+  }
+}
+
+.coin-sparkle {
+  animation: sparkle-twinkle 0.6s ease-in-out;
+}
+
+.coin-sparkle:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.coin-sparkle:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.coin-sparkle:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes sparkle-twinkle {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8) translateY(-15px);
+    opacity: 0;
+  }
+}
+
+.banner-wave {
+  animation: banner-wave-motion 2s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+@keyframes banner-wave-motion {
+  0%, 100% {
+    transform: skewY(0);
+  }
+  25% {
+    transform: skewY(-3deg);
+  }
+  50% {
+    transform: skewY(2deg);
+  }
+  75% {
+    transform: skewY(-2deg);
+  }
+}
+
+/* DIAMOND - Crystal Forge Animations */
+
+@keyframes rotate-crystal {
+  from {
+    transform: rotateY(0) rotateX(0);
+  }
+  to {
+    transform: rotateY(360deg) rotateX(0);
+  }
+}
+
+.crystal-dim {
+  filter: drop-shadow(0 0 4px rgba(14, 165, 233, 0.3));
+}
+
+.crystal-bright {
+  filter: drop-shadow(0 0 12px rgba(14, 165, 233, 0.8));
+}
+
+.forge-dust {
+  animation: dust-float 3s ease-in infinite;
+}
+
+.forge-dust:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.forge-dust:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.forge-dust:nth-child(3) {
+  animation-delay: 1s;
+}
+
+.forge-dust:nth-child(4) {
+  animation-delay: 1.5s;
+}
+
+@keyframes dust-float {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-30px) translateX(20px);
+    opacity: 0;
+  }
+}
+
+.hammer-swing {
+  animation: hammer-hit 0.8s ease-in-out infinite;
+  transform-origin: 64px 155px;
+}
+
+@keyframes hammer-hit {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-40deg);
+  }
+}
+
+.blacksmith {
+  animation: blacksmith-stand 2s ease-in-out infinite;
+}
+
+@keyframes blacksmith-stand {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* ORE - Mining Outpost Animations */
+
+.minecart-loop {
+  animation: minecart-move 4s linear infinite;
+}
+
+@keyframes minecart-move {
+  0% {
+    transform: translateX(-60px);
+  }
+  50% {
+    transform: translateX(60px);
+  }
+  100% {
+    transform: translateX(-60px);
+  }
+}
+
+.smoke-drift {
+  animation: smoke-rise 3s ease-in-out infinite;
+  transform-origin: 151px 110px;
+}
+
+.smoke-drift circle {
+  animation: smoke-expand 3s ease-out infinite;
+}
+
+.smoke-drift circle:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.smoke-drift circle:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.smoke-drift circle:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes smoke-expand {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-40px) scale(1.3);
+    opacity: 0;
+  }
+}
+
+@keyframes smoke-rise {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.worker-animation {
+  animation: worker-push 2s ease-in-out infinite;
+}
+
+@keyframes worker-push {
+  0%, 100% {
+    transform: translateX(-8px);
+  }
+  50% {
+    transform: translateX(8px);
+  }
+}
+
+/* ================================================
+   HOVER EFFECTS ACROSS ALL BUILDINGS
+   ================================================ */
+
+.resource-building:hover .building-svg {
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.7))
+    brightness(1.1);
+}
+
+/* ================================================
+   RESPONSIVE ADJUSTMENTS
+   ================================================ */
+
+@media (max-width: 768px) {
+  .resource-building {
+    width: 240px;
+    height: 280px;
+  }
+
+  .fortress-title {
+    font-size: 1.6rem;
+  }
+
+  .resource-counter {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+
+  .counter-value {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .resource-building {
+    width: 200px;
+    height: 240px;
+  }
+
+  .resource-counter {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .counter-value {
+    font-size: 1rem;
+  }
+}
