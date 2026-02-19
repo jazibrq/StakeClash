@@ -70,8 +70,8 @@ const Fortress = () => {
       <Navigation />
 
       <div
-        className="relative z-10 flex gap-4 px-4 pb-2"
-        style={{ height: 'calc(100vh - 3.5rem)', paddingTop: '5rem' }}
+        className="relative z-10 flex gap-4 px-4"
+        style={{ height: 'calc(100vh - 1rem)', paddingTop: '5rem' }}
       >
         {/* ── Fortress grid (dominant) ─────────────────────────── */}
         <div

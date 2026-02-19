@@ -295,13 +295,13 @@ const ResourcePanel = memo(({
   const src = `/animations/${resource}${level}.mp4`;
   const cfg = FORTRESS_CONFIG[resource];
 
-  /* Slight horizontal crop to trim black bars on sides;
-     no vertical crop so top/bottom content stays fully visible. */
+  /* Horizontal-only crop to trim black bars on sides; no vertical scaling
+     so full top-to-bottom video content is visible. */
   const videoStyle: React.CSSProperties = {
     position: 'absolute', inset: 0,
     width: '100%', height: '100%',
     objectFit: 'cover',
-    transform: 'scale(1.06) scaleX(1.16)',
+    transform: 'scaleX(1.16)',
     objectPosition: resource === 'diamond' ? 'center 55%' : 'center center',
   };
 

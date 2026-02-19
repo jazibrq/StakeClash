@@ -19,6 +19,9 @@ interface Player extends Vec2 {
   shieldActive:   boolean;
   shieldTimer:    number;    // ms of shield remaining
   shieldCooldown: number;    // ms until shield can be used again
+  dashActive:     boolean;
+  dashTimer:      number;    // ms of dash remaining
+  dashCooldown:   number;    // ms until dash can be used again
 }
 
 interface Enemy extends Vec2 {
@@ -59,6 +62,14 @@ interface GS {
   uid:              number;
 }
 
+interface AfterimageState {
+  x: number; y: number;
+  alpha: number;        // starts at ~0.55, fades to 0
+  state: PState;
+  frameIndex: number;
+  facing: 1 | -1;
+}
+
 type PlayerSprites   = Record<PState, HTMLImageElement | null>;
 type KnightSprites   = Record<'running' | 'attacking' | 'dead', HTMLImageElement | null>;
 type MageSprites     = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
@@ -91,10 +102,18 @@ const BLADESTORM_PER_KILL   = 20;   // charge gained per enemy kill
 
 /* ── skeleton constants ── */
 const SKELETON_RENDER_SIZE     = 96;
-const SKELETON_MOVE_SPEED      = 1.6;   // multiplier on base speed
+const SKELETON_MOVE_SPEED      = 2.8;   // multiplier on base speed
 const SKELETON_ATTACK_RANGE    = 55;
 const SKELETON_ATTACK_COOLDOWN = 900;   // ms
 const SKELETON_CONTACT_DAMAGE  = 15;
+
+/* ── knight constants ── */
+const KNIGHT_HIT_POINTS = 2;   // hits required to kill a knight
+
+/* ── dash constants ── */
+const DASH_DISTANCE = 130;   // px — instant snap displacement
+const DASH_DURATION = 500;   // ms — stutter duration after snap
+const DASH_COOLDOWN = 1200;  // ms — cooldown after stutter ends
 
 /* ── mage constants ── */
 const MAGE_RENDER_SIZE            = 128;  // 80% of player
@@ -206,6 +225,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bladestormVideoRef = useRef<HTMLVideoElement | null>(null);
   const bladestormChargeRef = useRef(0);   // 0 → BLADESTORM_CHARGE_MAX
+  const afterimageRef = useRef<AfterimageState | null>(null);
   const [started, setStarted] = useState(false);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
   const [bladestormPlaying, setBladestormPlaying] = useState(false);
@@ -259,6 +279,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       state: 'idle', frameIndex: 0, animTimer: 0,
       attackCooldown: 0, facing: 1, damageDealt: false,
       shieldActive: false, shieldTimer: 0, shieldCooldown: 0,
+      dashActive: false, dashTimer: 0, dashCooldown: 0,
     },
     enemies: [], particles: [], enemyProjectiles: [],
     keys: {}, timer: GAME_DURATION,
@@ -346,7 +367,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       const enemyType: 'knight' | 'mage' | 'skeleton' = roll < 0.30 ? 'skeleton' : roll < 0.60 ? 'mage' : 'knight';
       gs.enemies.push({
         id: gs.uid++, x, y,
-        hp: ENEMY_MAX_HP,
+        hp: enemyType === 'knight' ? KNIGHT_HIT_POINTS : ENEMY_MAX_HP,
         type: enemyType,
         state: 'running',
         frameIndex: 0, animTimer: 0,
@@ -383,10 +404,15 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       const img = playerSpritesRef.current[p.state];
       const half = RENDER_SIZE / 2;
 
+      /* crisp pixel-art stutter: flip ±1.5px every 50ms for DASH_DURATION */
+      const jitterX = p.dashActive
+        ? (Math.floor(p.dashTimer / 50) % 2 === 0 ? 1.5 : -1.5)
+        : 0;
+
       if (img && img.complete && img.naturalWidth > 0) {
         const frameW = img.width / cfg.frames;
         ctx.save();
-        ctx.translate(p.x, p.y);
+        ctx.translate(p.x + jitterX, p.y);
         if (p.facing === -1) ctx.scale(-1, 1);
         ctx.drawImage(
           img,
@@ -417,15 +443,16 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.fill();
       }
 
-      /* shield orb — centered on sprite */
+      /* shield orb — centered on sprite body */
       if (p.shieldActive) {
+        const shieldY = p.y + 8;  // shift down to align with character torso
         ctx.save();
         ctx.globalAlpha = 0.38;
         ctx.fillStyle   = '#42a5f5';
         ctx.shadowColor = '#1e88e5';
         ctx.shadowBlur  = 22;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, RENDER_SIZE * 0.38, 0, Math.PI * 2);
+        ctx.arc(p.x, shieldY, RENDER_SIZE * 0.25, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 0.7;
         ctx.strokeStyle = '#90caf9';
@@ -465,7 +492,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       }
 
       if (e.state !== 'dead' && e.state !== 'dying') {
-        const hf = e.hp / ENEMY_MAX_HP;
+        const hf = e.hp / KNIGHT_HIT_POINTS;
         const bw = ENEMY_RENDER_SIZE * 0.5;
         const hpY = e.y - ENEMY_RENDER_SIZE * 0.22;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -598,7 +625,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.fillText('SURVIVE', W / 2, 52);
 
-      /* shield indicator (bottom-left) */
+      /* shield indicator */
       {
         const sx = 20, sy = 46, sw = 80, sh = 8;
         const shReady = gs.player.shieldCooldown <= 0 && !gs.player.shieldActive;
@@ -612,12 +639,34 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.fillStyle = 'rgba(255,255,255,0.4)';
         ctx.font = '10px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText('SHIELD', sx, sy - 4);
+        ctx.fillText('F  SHIELD', sx, sy - 4);
+      }
+
+      /* dash indicator */
+      {
+        const dx2 = 20, dy2 = 66, dw = 80, dh = 8;
+        const dashReady = gs.player.dashCooldown <= 0 && !gs.player.dashActive;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        roundRect(ctx, dx2 - 2, dy2 - 2, dw + 4, dh + 4, 3); ctx.fill();
+        const dashFill = gs.player.dashActive
+          ? 1
+          : Math.max(0, 1 - gs.player.dashCooldown / DASH_COOLDOWN);
+        ctx.fillStyle = gs.player.dashActive ? '#f59e0b' : dashReady ? '#b45309' : '#455a64';
+        roundRect(ctx, dx2, dy2, dw * dashFill, dh, 2); ctx.fill();
+        if (gs.player.dashActive) {
+          ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 8;
+          roundRect(ctx, dx2, dy2, dw, dh, 2); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('⇧  DASH', dx2, dy2 - 4);
       }
 
       /* ultimate (bladestorm) charge bar */
       {
-        const ux = 20, uy = 66, uw = 80, uh = 8;
+        const ux = 20, uy = 88, uw = 80, uh = 8;
         const chargeFrac = bladestormChargeRef.current / BLADESTORM_CHARGE_MAX;
         const ready = chargeFrac >= 1;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -676,6 +725,11 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         if (p.shieldTimer <= 0) { p.shieldActive = false; p.shieldCooldown = SHIELD_COOLDOWN; }
       }
       if (p.shieldCooldown > 0) p.shieldCooldown -= dtMs;
+      if (p.dashActive) {
+        p.dashTimer -= dtMs;
+        if (p.dashTimer <= 0) { p.dashActive = false; p.dashCooldown = DASH_COOLDOWN; }
+      }
+      if (p.dashCooldown > 0) p.dashCooldown -= dtMs;
 
       /* ── state transitions (dead overrides all; attacking holds until complete) ── */
       if (p.state !== 'dead' && p.state !== 'attacking') {
@@ -700,15 +754,28 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
             if (e.state === 'dead' || e.state === 'dying') continue;
             if (dist2(p.x, p.y, e.x, e.y) < MELEE_RADIUS ** 2) {
               burst(gs, e.x, e.y, '#fbbf24', 6);
-              // mage & skeleton play death animation; knight snaps straight to dead
-              e.state      = e.type === 'knight' ? 'dead' : 'dying';
-              e.frameIndex = 0;
-              e.animTimer  = 0;
-              // charge ultimate
-              bladestormChargeRef.current = Math.min(
-                BLADESTORM_CHARGE_MAX,
-                bladestormChargeRef.current + BLADESTORM_PER_KILL,
-              );
+              if (e.type === 'knight') {
+                // knights require 2 hits
+                e.hp -= 1;
+                if (e.hp <= 0) {
+                  e.state      = 'dead';
+                  e.frameIndex = 0;
+                  e.animTimer  = 0;
+                  bladestormChargeRef.current = Math.min(
+                    BLADESTORM_CHARGE_MAX,
+                    bladestormChargeRef.current + BLADESTORM_PER_KILL,
+                  );
+                }
+              } else {
+                // mage & skeleton: one-hit, play death animation
+                e.state      = 'dying';
+                e.frameIndex = 0;
+                e.animTimer  = 0;
+                bladestormChargeRef.current = Math.min(
+                  BLADESTORM_CHARGE_MAX,
+                  bladestormChargeRef.current + BLADESTORM_PER_KILL,
+                );
+              }
             }
           }
         }
@@ -1033,6 +1100,28 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         else drawKnight(e);
       }
       drawProjectiles(gs.enemyProjectiles);
+
+      /* ── phase dash afterimage (ghost at origin position) ── */
+      const ai = afterimageRef.current;
+      if (ai) {
+        const aiCfg = ANIM_CONFIG[ai.state];
+        const aiImg = playerSpritesRef.current[ai.state];
+        if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
+          const frameW = aiImg.width / aiCfg.frames;
+          const half   = RENDER_SIZE / 2;
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, ai.alpha);
+          ctx.filter = 'grayscale(70%) brightness(0.6)';
+          ctx.translate(ai.x, ai.y);
+          if (ai.facing === -1) ctx.scale(-1, 1);
+          ctx.drawImage(aiImg, ai.frameIndex * frameW, 0, frameW, aiImg.height, -half, -half, RENDER_SIZE, RENDER_SIZE);
+          ctx.restore();
+        }
+        /* fade: 0.55 → 0 over 0.5 s */
+        ai.alpha -= dt * 1.1;
+        if (ai.alpha <= 0) afterimageRef.current = null;
+      }
+
       drawPlayer(p);
       drawHUD(gs);
 
@@ -1054,24 +1143,50 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
           transitionState(p, 'attacking');
           p.attackCooldown = ATTACK_COOLDOWN;
         }
-        /* SHIFT → shield */
-        if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') &&
+        /* F → shield */
+        if (e.code === 'KeyF' &&
             !p.shieldActive && p.shieldCooldown <= 0 && p.state !== 'dead') {
           p.shieldActive = true;
           p.shieldTimer  = SHIELD_DURATION;
+        }
+        /* SHIFT → phase dash (instant snap + afterimage + stutter) */
+        if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') &&
+            !p.dashActive && p.dashCooldown <= 0 && p.state !== 'dead') {
+          /* 1. store afterimage at current position */
+          afterimageRef.current = {
+            x: p.x, y: p.y,
+            alpha: 0.55,
+            state: p.state,
+            frameIndex: p.frameIndex,
+            facing: p.facing,
+          };
+          /* 2. compute direction from held movement keys */
+          let ddx = 0, ddy = 0;
+          if (gs.keys['KeyW'] || gs.keys['ArrowUp'])    ddy -= 1;
+          if (gs.keys['KeyS'] || gs.keys['ArrowDown'])  ddy += 1;
+          if (gs.keys['KeyA'] || gs.keys['ArrowLeft'])  ddx -= 1;
+          if (gs.keys['KeyD'] || gs.keys['ArrowRight']) ddx += 1;
+          if (ddx === 0 && ddy === 0) ddx = p.facing; // default: face direction
+          const dLen = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+          /* 3. instant snap to new position */
+          p.x = Math.max(PLAYER_RADIUS, Math.min(W - PLAYER_RADIUS, p.x + (ddx / dLen) * DASH_DISTANCE));
+          p.y = Math.max(PLAYER_RADIUS, Math.min(H - PLAYER_RADIUS, p.y + (ddy / dLen) * DASH_DISTANCE));
+          /* 4. begin stutter phase */
+          p.dashActive = true;
+          p.dashTimer  = DASH_DURATION;
         }
         /* X → bladestorm */
         if (e.code === 'KeyX') {
           triggerBladestorm();
         }
       }
-      /* F → toggle fullscreen */
-      if (e.code === 'KeyF') {
+      /* G → toggle fullscreen */
+      if (e.code === 'KeyG') {
         const root = rootRef.current;
         if (!document.fullscreenElement) root?.requestFullscreen();
         else document.exitFullscreen();
       }
-      if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','KeyX'].includes(e.code))
+      if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','KeyX','KeyS','KeyF'].includes(e.code))
         e.preventDefault();
     };
     const onUp = (e: KeyboardEvent) => {
@@ -1166,7 +1281,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
             fontSize: '12px', fontFamily: 'monospace',
             letterSpacing: '1px',
           }}>
-            WASD move · SPACE attack · SHIFT shield · X bladestorm · F fullscreen
+            WASD move · SPACE attack · F shield · SHIFT dash · X bladestorm · G fullscreen
           </div>
           <button
             onClick={() => setStarted(true)}
