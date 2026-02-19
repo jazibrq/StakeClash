@@ -1,0 +1,15 @@
+<svg width="95" height="28" viewBox="0 0 95 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g clip-path="url(#clip0)">
+    <!-- Base circle logo -->
+    <circle cx="14" cy="14" r="14" fill="#0052FF"/>
+    <path d="M14.0001 24C19.5229 24 24.0001 19.5228 24.0001 14C24.0001 8.47715 19.5229 4 14.0001 4C8.95431 4 4.79516 7.73414 4.13965 12.6667H17.3334V15.3333H4.13965C4.79516 20.2659 8.95431 24 14.0001 24Z" fill="white"/>
+
+    <!-- "base" text -->
+    <text x="30" y="19" font-family="Arial, sans-serif" font-weight="600" font-size="14" fill="white">base</text>
+  </g>
+  <defs>
+    <clipPath id="clip0">
+      <rect width="95" height="28" fill="white"/>
+    </clipPath>
+  </defs>
+</svg>

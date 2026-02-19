@@ -1,0 +1,785 @@
+/* Google Fonts - Inter (Multiple weights for typography system) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SkillStack Design System - Esports + Fintech Aesthetic */
+
+@layer base {
+  :root {
+    /* Base backgrounds - deep charcoal/near-black */
+    --background: 220 25% 5%;
+    --foreground: 210 20% 98%;
+
+    /* Layered surfaces for depth */
+    --card: 220 20% 8%;
+    --card-foreground: 210 20% 98%;
+    --card-elevated: 220 18% 11%;
+    --card-highlight: 220 15% 14%;
+
+    --popover: 220 20% 8%;
+    --popover-foreground: 210 20% 98%;
+
+    /* Primary - Electric Cyan */
+    --primary: 185 100% 50%;
+    --primary-foreground: 220 25% 5%;
+    --primary-glow: 185 100% 50%;
+
+    /* Secondary - Steel gray */
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 210 15% 75%;
+
+    /* Muted */
+    --muted: 220 15% 12%;
+    --muted-foreground: 215 15% 55%;
+
+    /* Accent - Ice blue */
+    --accent: 195 85% 55%;
+    --accent-foreground: 220 25% 5%;
+
+    /* States */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 98%;
+
+    /* Borders */
+    --border: 220 15% 18%;
+    --border-glow: 185 100% 50%;
+    --input: 220 15% 15%;
+    --ring: 185 100% 50%;
+
+    --radius: 0.5rem;
+
+    /* Custom surfaces */
+    --surface-1: 220 20% 8%;
+    --surface-2: 220 18% 11%;
+    --surface-3: 220 15% 14%;
+    --surface-4: 220 12% 18%;
+
+    /* Gradients */
+    --gradient-cyan: linear-gradient(135deg, hsl(185 100% 50%), hsl(195 85% 55%));
+    --gradient-cyan-subtle: linear-gradient(135deg, hsl(185 100% 50% / 0.2), hsl(195 85% 55% / 0.1));
+    --gradient-surface: linear-gradient(180deg, hsl(220 20% 10%), hsl(220 25% 5%));
+
+    /* Glow effects */
+    --glow-cyan: 0 0 20px hsl(185 100% 50% / 0.3), 0 0 40px hsl(185 100% 50% / 0.1);
+    --glow-cyan-strong: 0 0 30px hsl(185 100% 50% / 0.5), 0 0 60px hsl(185 100% 50% / 0.2);
+    --glow-cyan-subtle: 0 0 10px hsl(185 100% 50% / 0.15);
+
+    /* Sidebar */
+    --sidebar-background: 220 20% 8%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 185 100% 50%;
+    --sidebar-primary-foreground: 220 25% 5%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 185 100% 50%;
+  }
+
+  .dark {
+    /* Same as root - app is dark mode only */
+    --background: 220 25% 5%;
+    --foreground: 210 20% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    font-weight: 400;
+    /* OpenType features for enhanced readability */
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "kern";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Typography Hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-foreground;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: 2.5rem; /* 40px */
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  h2 {
+    font-size: 2rem; /* 32px */
+    font-weight: 600;
+    letter-spacing: 0.025em;
+  }
+
+  h3 {
+    font-size: 1.5rem; /* 24px */
+  }
+
+  h4 {
+    font-size: 1.25rem; /* 20px */
+  }
+
+  h5 {
+    font-size: 1.125rem; /* 18px */
+  }
+
+  h6 {
+    font-size: 1rem; /* 16px */
+  }
+
+  p {
+    margin-bottom: 1rem;
+  }
+
+  /* Premium number styling */
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Typography - Label/Eyebrow Style (Editorial/Methodology vibe) */
+  .ui-label {
+    @apply text-xs font-medium text-muted-foreground;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+
+  .ui-label-primary {
+    @apply text-xs font-medium text-primary;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+
+  /* Section eyebrow - larger variant */
+  .section-eyebrow {
+    @apply text-sm font-medium text-muted-foreground;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+  }
+
+  /* Cyan gradient button */
+  .btn-cyan-gradient {
+    @apply relative overflow-hidden bg-gradient-to-r from-primary to-accent text-primary-foreground;
+    @apply transition-all duration-200 ease-out;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-cyan-gradient:hover {
+    box-shadow: var(--glow-cyan);
+  }
+
+  .btn-cyan-gradient:active {
+    transform: scale(0.98);
+  }
+
+  /* Outlined button with glow on hover */
+  .btn-outline-glow {
+    @apply border border-border bg-transparent text-foreground;
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .btn-outline-glow:hover {
+    @apply border-primary text-primary;
+    box-shadow: var(--glow-cyan-subtle);
+  }
+
+  /* Card with layered depth - glass effect for video background */
+  .card-surface {
+    @apply border border-white/10 rounded-lg backdrop-blur-xl;
+    background: linear-gradient(180deg, hsl(220 25% 8% / 0.8), hsl(220 25% 6% / 0.75));
+  }
+
+  /* Header image background with slight blur */
+  .nav-image-bg {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nav-image-bg::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    z-index: 0;
+    background-image: var(--nav-bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(4px);
+    transform: scale(1.05);
+  }
+
+  .nav-image-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.14);
+  }
+
+  .nav-image-bg > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .card-surface-elevated {
+    @apply border border-white/[0.12] rounded-lg backdrop-blur-xl;
+    background: linear-gradient(180deg, hsl(220 25% 10% / 0.85), hsl(220 25% 8% / 0.8));
+  }
+
+
+  /* Thick liquid-glass panel - true optical glass effect */
+  .thick-glass-panel {
+    @apply relative;
+    /* Graceful fallback for browsers without backdrop-filter support */
+    background: linear-gradient(180deg, hsl(220 25% 8% / 0.45), hsl(220 25% 6% / 0.35));
+  }
+
+  /* When backdrop-filter is supported, the component's inline styles take over */
+  @supports (backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px)) {
+    .thick-glass-panel {
+      background: transparent; /* Let the component's layered backgrounds show through */
+    }
+  }
+
+  /* Enhanced refraction animation on hover (optional, subtle) */
+  .thick-glass-panel.animate-refraction {
+    animation: subtle-refraction 8s ease-in-out infinite;
+  }
+
+  @keyframes subtle-refraction {
+    0%, 100% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.02);
+    }
+  }
+
+  /* Inset highlight border effect */
+  .inset-highlight {
+    @apply relative;
+  }
+
+  .inset-highlight::before {
+    content: '';
+    @apply absolute inset-0 rounded-lg pointer-events-none;
+    background: linear-gradient(180deg, hsl(var(--border) / 0.5) 0%, transparent 50%);
+  }
+
+  /* Cyan glow effect for active states */
+  .glow-active {
+    box-shadow: var(--glow-cyan);
+  }
+
+  .glow-active-subtle {
+    box-shadow: var(--glow-cyan-subtle);
+  }
+
+  /* Text gradient */
+  .text-gradient-cyan {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  /* Metric display */
+  .metric-value {
+    @apply text-3xl font-bold tracking-tight font-mono text-foreground;
+    font-weight: 700;
+  }
+
+  .metric-label {
+    @apply text-xs font-medium text-muted-foreground;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 500;
+  }
+
+  /* Panel hover effect */
+  .panel-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .panel-hover:hover {
+    @apply border-primary/50;
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+
+  /* Table row hover */
+  .row-hover {
+    @apply transition-all duration-150 ease-out;
+  }
+
+  .row-hover:hover {
+    @apply bg-card-elevated;
+    box-shadow: inset 2px 0 0 0 hsl(var(--primary));
+  }
+
+  /* Skeleton loading */
+  .skeleton-pulse {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  /* Step indicator */
+  .step-dot {
+    @apply w-3 h-3 rounded-full bg-muted transition-all duration-200;
+  }
+
+  .step-dot.active {
+    @apply bg-primary;
+    box-shadow: var(--glow-cyan-subtle);
+  }
+
+  /* Tab underline animation */
+  .tab-underline {
+    @apply relative;
+  }
+
+  .tab-underline::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-full h-0.5 bg-primary scale-x-0 transition-transform duration-200 origin-left;
+  }
+
+  .tab-underline.active::after,
+  .tab-underline:hover::after {
+    @apply scale-x-100;
+  }
+
+  .tab-underline.active::after {
+    box-shadow: var(--glow-cyan-subtle);
+  }
+}
+
+@layer utilities {
+  .cursor-refraction-fallback {
+    --cursor-x: 50%;
+    --cursor-y: 50%;
+    background:
+      radial-gradient(
+        circle 160px at var(--cursor-x) var(--cursor-y),
+        hsl(210 30% 90% / 0.06) 0%,
+        hsl(210 30% 90% / 0.03) 35%,
+        transparent 65%
+      );
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
+
+  /* Animation utilities */
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out forwards;
+  }
+
+  /* Liquid glass animations - moving caustics and refraction */
+  .animate-caustic-sweep-1 {
+    animation: caustic-sweep-1 14s linear infinite;
+  }
+
+  .animate-caustic-sweep-2 {
+    animation: caustic-sweep-2 18s linear infinite;
+  }
+
+  .animate-refraction-drift {
+    animation: refraction-drift 20s ease-in-out infinite;
+  }
+
+  /* Disable animations for users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-caustic-sweep-1,
+    .animate-caustic-sweep-2,
+    .animate-refraction-drift {
+      animation: none;
+    }
+  }
+
+  /* Scroll reveal animations */
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .scroll-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Stagger delays */
+  .stagger-1 { transition-delay: 100ms; }
+  .stagger-2 { transition-delay: 200ms; }
+  .stagger-3 { transition-delay: 300ms; }
+  .stagger-4 { transition-delay: 400ms; }
+
+  /* Checkpoint ping animation */
+  .checkpoint-ping {
+    animation: checkpoint-ping 0.6s ease-out forwards;
+  }
+
+  /* Token drift animation */
+  .token-drift {
+    animation: token-drift 3s ease-in-out infinite;
+  }
+
+  /* Transform pulse for vault staking */
+  .transform-pulse {
+    animation: transform-pulse 2s ease-in-out infinite;
+  }
+
+  /* Chart climb animation */
+  .chart-climb {
+    animation: chart-climb 2s ease-out infinite;
+  }
+
+  /* Counter tick animation */
+  .counter-tick {
+    animation: counter-tick 0.15s ease-out;
+  }
+
+  /* Lobby row hover lift */
+  .lobby-row-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .lobby-row-hover:hover {
+    @apply -translate-y-0.5 shadow-lg;
+    box-shadow: 0 4px 20px -5px hsl(185 100% 50% / 0.2), inset 0 0 0 1px hsl(185 100% 50% / 0.3);
+  }
+
+  /* Modal animation */
+  .modal-enter {
+    animation: modal-enter 0.25s ease-out forwards;
+  }
+
+  .modal-exit {
+    animation: modal-exit 0.2s ease-in forwards;
+  }
+
+  /* Filter toggle animation */
+  .filter-toggle {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .filter-toggle.active {
+    @apply scale-[1.02];
+  }
+
+  /* Skeleton shimmer */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+/* Keyframes */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(185 100% 50% / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px hsl(185 100% 50% / 0.5);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Aurora background animation */
+@keyframes aurora {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes particle-drift {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(20px);
+    opacity: 0;
+  }
+}
+
+.animate-aurora {
+  animation: aurora 15s ease infinite;
+  background-size: 400% 400%;
+}
+
+.animate-particle {
+  animation: particle-drift 20s linear infinite;
+}
+
+/* Checkpoint ping */
+@keyframes checkpoint-ping {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsl(185 100% 50% / 0.7);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 15px hsl(185 100% 50% / 0);
+  }
+}
+
+/* Token drift for wallet visual */
+@keyframes token-drift {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  25% {
+    transform: translateX(3px) translateY(-2px);
+  }
+  50% {
+    transform: translateX(6px) translateY(0);
+  }
+  75% {
+    transform: translateX(3px) translateY(2px);
+  }
+}
+
+/* Transform pulse for staking */
+@keyframes transform-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Chart climb animation */
+@keyframes chart-climb {
+  0% {
+    transform: scaleY(0.8);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.8);
+    opacity: 0.6;
+  }
+}
+
+/* Counter tick */
+@keyframes counter-tick {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+    color: hsl(185 100% 60%);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Modal animations */
+@keyframes modal-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modal-exit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+/* Skeleton shimmer */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Nav underline slide */
+@keyframes nav-underline-slide {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  100% {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+/* Horizontal scroll banner */
+@keyframes scroll-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll-x {
+  animation: scroll-x 20s linear infinite;
+}
+
+/* Liquid glass caustics - moving light streaks */
+@keyframes caustic-sweep-1 {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes caustic-sweep-2 {
+  0% {
+    background-position: -120% 0;
+  }
+  100% {
+    background-position: 220% 0;
+  }
+}
+
+/* Refraction drift - subtle optical bend movement */
+@keyframes refraction-drift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translate(2px, -1px) scale(1.005);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(1px, 1px) scale(1);
+    opacity: 0.8;
+  }
+  75% {
+    transform: translate(-1px, 0px) scale(0.998);
+    opacity: 0.7;
+  }
+}
