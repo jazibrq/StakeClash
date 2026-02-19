@@ -127,9 +127,10 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
   const rafRef     = useRef(0);
   const playerSpritesRef = useRef<PlayerSprites>({ idle: null, running: null, attacking: null, dead: null });
   const enemySpritesRef  = useRef<EnemySprites>({ running: null, attacking: null, dead: null });
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
 
-  /* ── load sprites once on mount ── */
+  /* ── load sprites + background once on mount ── */
   useEffect(() => {
     (Object.keys(PLAYER_SPRITE_FILE) as PState[]).forEach(state => {
       const img = new Image();
@@ -143,6 +144,10 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       img.onload  = () => { enemySpritesRef.current[state] = img; };
       img.onerror = () => { enemySpritesRef.current[state] = null; };
     });
+    const bg = new Image();
+    bg.src = '/images/finalbattlebackground.png';
+    bg.onload  = () => { bgImageRef.current = bg; };
+    bg.onerror = () => { bgImageRef.current = null; };
   }, []);
 
   /* ── initial game state ── */
@@ -526,9 +531,13 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       gs.particles = gs.particles.filter(pt => pt.life > 0);
 
       /* ── render ── */
-      ctx.fillStyle = '#0d0d16';
-      ctx.fillRect(0, 0, W, H);
-      drawGrid();
+      const bg = bgImageRef.current;
+      if (bg && bg.complete && bg.naturalWidth > 0) {
+        ctx.drawImage(bg, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = '#0d0d16';
+        ctx.fillRect(0, 0, W, H);
+      }
 
       for (const pt of gs.particles) {
         ctx.globalAlpha = Math.max(0, pt.life);
@@ -588,7 +597,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         position: 'relative',
         width: '100%', height: '580px',
         borderRadius: '12px', overflow: 'hidden',
-        background: '#0d0d16',
+        background: '#000',
         border: '1px solid rgba(255,255,255,0.06)',
         boxShadow: '0 0 60px rgba(0,229,255,0.04), 0 24px 80px rgba(0,0,0,0.8)',
       }}
