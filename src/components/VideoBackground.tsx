@@ -269,7 +269,7 @@ export const VideoBackground = ({ overlayOpacity = 0.5 }: VideoBackgroundProps) 
           warpActive ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        <source src="/videos/animatedbackground.mp4" type="video/mp4" />
+        <source src="/videos/upscaled-video.mp4" type="video/mp4" />
       </video>
 
       {/* WebGL warp canvas */}
