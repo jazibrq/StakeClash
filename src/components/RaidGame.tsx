@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 /* ─── types ─────────────────────────────────────────────────── */
 
 type PState = 'idle' | 'running' | 'attacking' | 'dead';
+type EState = 'running' | 'attacking' | 'dead';
 
 interface Vec2 { x: number; y: number; }
 
@@ -19,10 +20,11 @@ interface Player extends Vec2 {
 
 interface Enemy extends Vec2 {
   id: number; hp: number;
-}
-
-interface Bullet extends Vec2 {
-  id: number; vx: number; vy: number;
+  state:      EState;
+  frameIndex: number;
+  animTimer:  number;
+  facing:     1 | -1;
+  damageDealt: boolean;  // whether this attack swing dealt damage
 }
 
 interface Particle extends Vec2 {
@@ -33,17 +35,16 @@ interface Particle extends Vec2 {
 interface GS {
   player: Player;
   enemies: Enemy[];
-  bullets: Bullet[];
   particles: Particle[];
   keys: Record<string, boolean>;
   timer: number;
   lastSpawn: number;
-  lastShot: number;
   running: boolean;
   uid: number;
 }
 
-type Sprites = Record<PState, HTMLImageElement | null>;
+type PlayerSprites = Record<PState, HTMLImageElement | null>;
+type EnemySprites  = Record<EState, HTMLImageElement | null>;
 
 /* ─── constants ─────────────────────────────────────────────── */
 
@@ -51,10 +52,6 @@ const GAME_DURATION    = 60;
 const PLAYER_RADIUS    = 14;   // hitbox radius
 const PLAYER_MAX_HP    = 100;
 const PLAYER_SPEED     = 230;
-const BULLET_RADIUS    = 5;
-const BULLET_SPEED     = 400;
-const BULLET_DAMAGE    = 22;
-const BULLET_COOLDOWN  = 480;
 const ENEMY_RADIUS     = 12;
 const ENEMY_MAX_HP     = 40;
 const ENEMY_BASE_SPEED = 75;
@@ -62,25 +59,40 @@ const ENEMY_DAMAGE     = 14;
 const SPAWN_RATE_START = 1400;
 const SPAWN_RATE_MIN   = 380;
 
-const RENDER_SIZE      = 80;   // sprite draw size (px)
-const MELEE_RADIUS     = 60;   // melee attack reach
-const ATTACK_COOLDOWN  = 600;  // ms between melee uses
+const RENDER_SIZE        = 160;  // player sprite draw size (px)
+const ENEMY_RENDER_SIZE  = 100;  // enemy sprite draw size (px)
+const MELEE_RADIUS       = 60;   // melee attack reach
+const ATTACK_COOLDOWN    = 600;  // ms between melee uses
+const CONTACT_RADIUS     = PLAYER_RADIUS + ENEMY_RADIUS; // enemy→player touch
 
-/* exact hardcoded anim config */
+/* ── player (samurai) anim config ── */
 const ANIM_CONFIG: Record<PState, { frames: number; frameDuration: number; loop: boolean }> = {
-  idle:      { frames: 4, frameDuration: 120, loop: true  },
-  running:   { frames: 7, frameDuration: 80,  loop: true  },
+  idle:      { frames: 6, frameDuration: 120, loop: true  },
+  running:   { frames: 8, frameDuration: 80,  loop: true  },
   attacking: { frames: 4, frameDuration: 70,  loop: false },
   dead:      { frames: 6, frameDuration: 100, loop: false },
 };
-const MELEE_DAMAGE_FRAME = 3; // 0-indexed  (spec's damageStartFrame:4 → index 3)
+const MELEE_DAMAGE_START_FRAME = 3; // 0-indexed: damage on last frame of 4-frame attack
 
-/* sprite sheet filenames per state */
-const SPRITE_FILE: Record<PState, string> = {
-  idle:      'idle',
-  running:   'run',
-  attacking: 'attack',
-  dead:      'death',
+/* ── enemy (iron vanguard / knight) anim config ── */
+const ENEMY_ANIM_CONFIG: Record<EState, { frames: number; frameDuration: number; loop: boolean }> = {
+  running:   { frames: 7, frameDuration: 80,  loop: true  },
+  attacking: { frames: 5, frameDuration: 90,  loop: true  },
+  dead:      { frames: 6, frameDuration: 100, loop: false },
+};
+const ENEMY_ATTACK_DAMAGE_FRAME = 3; // frame on which enemy deals damage
+
+/* ── sprite sheet paths ── */
+const PLAYER_SPRITE_FILE: Record<PState, string> = {
+  idle:      'Idle',
+  running:   'Run',
+  attacking: 'Attack',
+  dead:      'Dead',
+};
+const ENEMY_SPRITE_FILE: Record<EState, string> = {
+  running:   'Run',
+  attacking: 'Attack',
+  dead:      'Dead',
 };
 
 /* ─── helpers ────────────────────────────────────────────────── */
@@ -113,16 +125,23 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const gsRef      = useRef<GS | null>(null);
   const rafRef     = useRef(0);
-  const spritesRef = useRef<Sprites>({ idle: null, running: null, attacking: null, dead: null });
+  const playerSpritesRef = useRef<PlayerSprites>({ idle: null, running: null, attacking: null, dead: null });
+  const enemySpritesRef  = useRef<EnemySprites>({ running: null, attacking: null, dead: null });
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
 
   /* ── load sprites once on mount ── */
   useEffect(() => {
-    (Object.keys(SPRITE_FILE) as PState[]).forEach(state => {
+    (Object.keys(PLAYER_SPRITE_FILE) as PState[]).forEach(state => {
       const img = new Image();
-      img.src = `/sprites/player/${SPRITE_FILE[state]}.png`;
-      img.onload  = () => { spritesRef.current[state] = img; };
-      img.onerror = () => { spritesRef.current[state] = null; };
+      img.src = `/heroes/${PLAYER_SPRITE_FILE[state]}.png`;
+      img.onload  = () => { playerSpritesRef.current[state] = img; };
+      img.onerror = () => { playerSpritesRef.current[state] = null; };
+    });
+    (Object.keys(ENEMY_SPRITE_FILE) as EState[]).forEach(state => {
+      const img = new Image();
+      img.src = `/enemies/knights/${ENEMY_SPRITE_FILE[state]}.png`;
+      img.onload  = () => { enemySpritesRef.current[state] = img; };
+      img.onerror = () => { enemySpritesRef.current[state] = null; };
     });
   }, []);
 
@@ -134,9 +153,9 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       state: 'idle', frameIndex: 0, animTimer: 0,
       attackCooldown: 0, facing: 1, damageDealt: false,
     },
-    enemies: [], bullets: [], particles: [],
+    enemies: [], particles: [],
     keys: {}, timer: GAME_DURATION,
-    lastSpawn: 0, lastShot: 0,
+    lastSpawn: 0,
     running: true, uid: 0,
   }), []);
 
@@ -173,26 +192,8 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       else if (side === 1) { x = W + m; y = Math.random() * H; }
       else if (side === 2) { x = Math.random() * W; y = H + m; }
       else                 { x = -m;    y = Math.random() * H; }
-      gs.enemies.push({ id: gs.uid++, x, y, hp: ENEMY_MAX_HP });
+      gs.enemies.push({ id: gs.uid++, x, y, hp: ENEMY_MAX_HP, state: 'running', frameIndex: 0, animTimer: 0, facing: 1, damageDealt: false });
       gs.lastSpawn = now;
-    };
-
-    const autoShoot = (gs: GS, now: number) => {
-      if (!gs.enemies.length) return;
-      let near = gs.enemies[0]; let nearD = Infinity;
-      for (const e of gs.enemies) {
-        const d = dist2(gs.player.x, gs.player.y, e.x, e.y);
-        if (d < nearD) { nearD = d; near = e; }
-      }
-      const dx = near.x - gs.player.x;
-      const dy = near.y - gs.player.y;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      gs.bullets.push({
-        id: gs.uid++,
-        x: gs.player.x, y: gs.player.y,
-        vx: (dx / len) * BULLET_SPEED, vy: (dy / len) * BULLET_SPEED,
-      });
-      gs.lastShot = now;
     };
 
     const burst = (gs: GS, x: number, y: number, color: string, n: number) => {
@@ -218,7 +219,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
     const drawPlayer = (p: Player) => {
       const cfg = ANIM_CONFIG[p.state];
-      const img = spritesRef.current[p.state];
+      const img = playerSpritesRef.current[p.state];
       const half = RENDER_SIZE / 2;
 
       if (img && img.complete && img.naturalWidth > 0) {
@@ -257,29 +258,41 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
     };
 
     const drawEnemy = (e: Enemy) => {
-      const hf = e.hp / ENEMY_MAX_HP;
-      ctx.shadowColor = '#ff1744';
-      ctx.shadowBlur  = 8;
-      ctx.fillStyle   = `rgba(210,48,48,${0.65 + hf * 0.35})`;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, ENEMY_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      const bw = ENEMY_RADIUS * 2;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(e.x - bw / 2, e.y - ENEMY_RADIUS - 7, bw, 3);
-      ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
-      ctx.fillRect(e.x - bw / 2, e.y - ENEMY_RADIUS - 7, bw * hf, 3);
-    };
+      const cfg = ENEMY_ANIM_CONFIG[e.state];
+      const img = enemySpritesRef.current[e.state];
+      const half = ENEMY_RENDER_SIZE / 2;
 
-    const drawBullet = (b: Bullet) => {
-      ctx.shadowColor = '#80deea';
-      ctx.shadowBlur  = 10;
-      ctx.fillStyle   = '#e0f7fa';
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, BULLET_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      if (img && img.complete && img.naturalWidth > 0) {
+        const frameW = img.width / cfg.frames;
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        if (e.facing === -1) ctx.scale(-1, 1);
+        ctx.drawImage(
+          img,
+          e.frameIndex * frameW, 0, frameW, img.height,
+          -half, -half, ENEMY_RENDER_SIZE, ENEMY_RENDER_SIZE,
+        );
+        ctx.restore();
+      } else {
+        /* fallback: red circle */
+        ctx.shadowColor = '#ff1744';
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = 'rgba(210,48,48,0.85)';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, ENEMY_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      /* HP bar */
+      if (e.state !== 'dead') {
+        const hf = e.hp / ENEMY_MAX_HP;
+        const bw = ENEMY_RENDER_SIZE * 0.5;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw, 3);
+        ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw * hf, 3);
+      }
     };
 
     const drawHUD = (gs: GS) => {
@@ -364,16 +377,18 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       while (p.animTimer >= cfg.frameDuration) {
         p.animTimer -= cfg.frameDuration;
 
-        /* melee burst fires on damage frame */
-        if (p.state === 'attacking' && p.frameIndex === MELEE_DAMAGE_FRAME && !p.damageDealt) {
+        /* melee burst fires on damage frame (last frame of 4-frame attack) */
+        if (p.state === 'attacking' && p.frameIndex >= MELEE_DAMAGE_START_FRAME && !p.damageDealt) {
           p.damageDealt = true;
-          gs.enemies = gs.enemies.filter(e => {
+          for (const e of gs.enemies) {
+            if (e.state === 'dead') continue;
             if (dist2(p.x, p.y, e.x, e.y) < MELEE_RADIUS ** 2) {
               burst(gs, e.x, e.y, '#fbbf24', 6);
-              return false; // kill enemy
+              e.state = 'dead';
+              e.frameIndex = 0;
+              e.animTimer = 0;
             }
-            return true;
-          });
+          }
         }
 
         p.frameIndex++;
@@ -383,7 +398,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
           } else {
             p.frameIndex = cfg.frames - 1; // hold last frame
             if (p.state === 'attacking') {
-              transitionState(p, 'idle');
+              if (p.hp > 0) transitionState(p, 'idle');
             } else if (p.state === 'dead') {
               gs.running = false;
               setResult('defeat'); return;
@@ -414,48 +429,89 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         p.vx *= 0.75; p.vy *= 0.75;
       }
 
-      /* ── auto-shoot ── */
-      if (p.state !== 'dead' && now - gs.lastShot > BULLET_COOLDOWN && gs.enemies.length) {
-        autoShoot(gs, now);
-      }
-
-      /* ── move bullets ── */
-      for (const b of gs.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; }
-
-      /* ── bullet–enemy collisions ── */
-      const killB = new Set<number>();
-      const killE = new Set<number>();
-      for (const b of gs.bullets) {
-        if (b.x < -60 || b.x > W + 60 || b.y < -60 || b.y > H + 60) { killB.add(b.id); continue; }
-        for (const e of gs.enemies) {
-          if (killE.has(e.id)) continue;
-          if (dist2(b.x, b.y, e.x, e.y) < (BULLET_RADIUS + ENEMY_RADIUS) ** 2) {
-            e.hp -= BULLET_DAMAGE;
-            killB.add(b.id);
-            if (e.hp <= 0) { killE.add(e.id); burst(gs, e.x, e.y, '#ff5252', 8); }
-          }
-        }
-      }
-      gs.bullets = gs.bullets.filter(b => !killB.has(b.id));
-      gs.enemies = gs.enemies.filter(e => !killE.has(e.id));
-
-      /* ── move enemies + player contact damage ── */
+      /* ── move enemies + enemy state machine ── */
       if (p.state !== 'dead') {
         const speed = ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9;
         for (const e of gs.enemies) {
+          if (e.state === 'dead') continue; // dead enemies don't move or attack
+
           const dx = p.x - e.x, dy = p.y - e.y;
           const len = Math.sqrt(dx * dx + dy * dy) || 1;
-          e.x += (dx / len) * speed * dt;
-          e.y += (dy / len) * speed * dt;
-          if (len < PLAYER_RADIUS + ENEMY_RADIUS) {
-            p.hp -= ENEMY_DAMAGE * dt;
-            if (p.hp <= 0) {
-              p.hp = 0;
-              transitionState(p, 'dead'); // play death anim before setResult
+
+          // face toward player
+          e.facing = dx >= 0 ? 1 : -1;
+
+          const inContact = len < CONTACT_RADIUS + 10;
+
+          if (inContact) {
+            // switch to attacking if not already
+            if (e.state !== 'attacking') {
+              e.state = 'attacking';
+              e.frameIndex = 0;
+              e.animTimer = 0;
+              e.damageDealt = false;
+            }
+          } else {
+            // move toward player
+            if (e.state !== 'attacking') {
+              if (e.state !== 'running') {
+                e.state = 'running';
+                e.frameIndex = 0;
+                e.animTimer = 0;
+              }
+              e.x += (dx / len) * speed * dt;
+              e.y += (dy / len) * speed * dt;
+            } else {
+              // if was attacking but player moved out of range, go back to running
+              e.state = 'running';
+              e.frameIndex = 0;
+              e.animTimer = 0;
             }
           }
         }
       }
+
+      /* ── advance enemy animations ── */
+      for (const e of gs.enemies) {
+        const cfg = ENEMY_ANIM_CONFIG[e.state];
+        e.animTimer += dtMs;
+        while (e.animTimer >= cfg.frameDuration) {
+          e.animTimer -= cfg.frameDuration;
+
+          // enemy deals damage on attack damage frame
+          if (e.state === 'attacking' && e.frameIndex === ENEMY_ATTACK_DAMAGE_FRAME && !e.damageDealt) {
+            e.damageDealt = true;
+            if (p.state !== 'dead') {
+              const dx = p.x - e.x, dy = p.y - e.y;
+              const len = Math.sqrt(dx * dx + dy * dy) || 1;
+              if (len < CONTACT_RADIUS + 10) {
+                p.hp -= ENEMY_DAMAGE;
+                if (p.hp <= 0) {
+                  p.hp = 0;
+                  transitionState(p, 'dead');
+                }
+              }
+            }
+          }
+
+          e.frameIndex++;
+          if (e.frameIndex >= cfg.frames) {
+            if (cfg.loop) {
+              e.frameIndex = 0;
+              e.damageDealt = false; // reset for next attack cycle
+            } else {
+              e.frameIndex = cfg.frames - 1; // hold last frame
+              // dead animation finished: mark for removal
+            }
+          }
+        }
+      }
+
+      /* remove enemies whose death animation has finished */
+      gs.enemies = gs.enemies.filter(e => {
+        if (e.state !== 'dead') return true;
+        return e.frameIndex < ENEMY_ANIM_CONFIG.dead.frames - 1;
+      });
 
       /* ── spawn ── */
       const rate = Math.max(SPAWN_RATE_MIN, SPAWN_RATE_START - (GAME_DURATION - gs.timer) * 17);
@@ -483,7 +539,6 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       }
       ctx.globalAlpha = 1;
 
-      for (const b of gs.bullets) drawBullet(b);
       for (const e of gs.enemies) drawEnemy(e);
       drawPlayer(p);
       drawHUD(gs);
@@ -554,7 +609,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
           userSelect: 'none', pointerEvents: 'none',
           letterSpacing: '0.5px',
         }}>
-          WASD / Arrows to move · SPACE to attack · Auto-attacks nearest enemy
+          WASD / Arrows to move · SPACE to melee attack
         </div>
       )}
 

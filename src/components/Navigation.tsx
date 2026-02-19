@@ -95,7 +95,7 @@ export const Navigation = () => {
           <div className="flex-1 flex items-center justify-end gap-4">
             {/* X (Twitter) Link */}
             <a
-              href="https://x.com"
+              href="https://x.com/StakeClashBC"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-lg flex items-center justify-center text-primary hover:text-primary/80 hover:bg-surface-2 transition-colors"
