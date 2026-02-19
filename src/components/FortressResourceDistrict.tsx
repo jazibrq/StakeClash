@@ -244,13 +244,20 @@ const Tooltip = ({
               <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
                 REQUIRES
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {next.requires.map(r => {
                   const have  = resources[r.resource];
                   const met   = have >= r.amount;
                   return (
-                    <div key={r.resource} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                      <span style={{ color: 'rgba(255,255,255,0.45)' }}>{r.label}</span>
+                    <div key={r.resource} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <img
+                          src={`/images/resources/${r.resource}logo.png`}
+                          alt={r.label}
+                          style={{ width: 16, height: 16, imageRendering: 'pixelated', flexShrink: 0 }}
+                        />
+                        <span style={{ color: 'rgba(255,255,255,0.45)' }}>{r.label}</span>
+                      </div>
                       <span style={{ fontFamily: 'monospace', color: met ? '#4ade80' : '#f87171' }}>
                         {Math.floor(have)} / {r.amount}
                       </span>
@@ -288,6 +295,16 @@ const ResourcePanel = memo(({
   const src = `/animations/${resource}${level}.mp4`;
   const cfg = FORTRESS_CONFIG[resource];
 
+  /* Slight horizontal crop to trim black bars on sides;
+     no vertical crop so top/bottom content stays fully visible. */
+  const videoStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0,
+    width: '100%', height: '100%',
+    objectFit: 'cover',
+    transform: 'scale(1.06) scaleX(1.16)',
+    objectPosition: resource === 'diamond' ? 'center 55%' : 'center center',
+  };
+
   /* auto-level when resources meet the next level's requirement */
   useEffect(() => {
     if (levelRef.current >= 3) return;
@@ -310,20 +327,44 @@ const ResourcePanel = memo(({
         key={src}
         src={src}
         autoPlay muted loop playsInline preload="auto"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        style={videoStyle}
       />
 
-      {/* Level badge */}
+      {/* Level badge + selector */}
       <div style={{
         position: 'absolute', top: 10, left: 10, zIndex: 10,
-        background: 'rgba(0,0,0,0.7)',
-        border: `1px solid ${cfg.color}55`,
-        borderRadius: '6px',
-        padding: '2px 10px',
-        fontFamily: 'monospace', fontSize: '11px',
-        color: cfg.color, fontWeight: 700, letterSpacing: '1px',
+        display: 'flex', alignItems: 'center', gap: '4px',
       }}>
-        LV {level}
+        <div style={{
+          background: 'rgba(0,0,0,0.7)',
+          border: `1px solid ${cfg.color}55`,
+          borderRadius: '6px',
+          padding: '2px 10px',
+          fontFamily: 'monospace', fontSize: '11px',
+          color: cfg.color, fontWeight: 700, letterSpacing: '1px',
+        }}>
+          LV {level}
+        </div>
+        {([1, 2, 3] as Level[]).map(lv => (
+          <button
+            key={lv}
+            onClick={(ev) => { ev.stopPropagation(); setLevel(lv); onLevelChange(resource, lv); }}
+            style={{
+              width: 22, height: 22,
+              borderRadius: '4px',
+              border: lv === level ? `1px solid ${cfg.color}` : '1px solid rgba(255,255,255,0.15)',
+              background: lv === level ? `${cfg.color}22` : 'rgba(0,0,0,0.6)',
+              color: lv === level ? cfg.color : 'rgba(255,255,255,0.45)',
+              fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {lv}
+          </button>
+        ))}
       </div>
 
       {/* Name badge */}

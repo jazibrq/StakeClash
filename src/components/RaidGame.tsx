@@ -24,7 +24,7 @@ interface Player extends Vec2 {
 interface Enemy extends Vec2 {
   id: number;
   hp: number;
-  type:              'knight' | 'mage';
+  type:              'knight' | 'mage' | 'skeleton';
   state:             EState;
   frameIndex:        number;
   animTimer:         number;
@@ -59,9 +59,10 @@ interface GS {
   uid:              number;
 }
 
-type PlayerSprites = Record<PState, HTMLImageElement | null>;
-type KnightSprites = Record<'running' | 'attacking' | 'dead', HTMLImageElement | null>;
-type MageSprites   = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
+type PlayerSprites   = Record<PState, HTMLImageElement | null>;
+type KnightSprites   = Record<'running' | 'attacking' | 'dead', HTMLImageElement | null>;
+type MageSprites     = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
+type SkeletonSprites = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
 
 /* ─── constants ─────────────────────────────────────────────── */
 
@@ -84,6 +85,16 @@ const CONTACT_RADIUS     = PLAYER_RADIUS + ENEMY_RADIUS;
 
 const SHIELD_DURATION  = 5000;   // ms shield stays active
 const SHIELD_COOLDOWN  = 10000;  // ms before shield can be used again
+
+const BLADESTORM_CHARGE_MAX  = 100;  // full bar = 100 charge
+const BLADESTORM_PER_KILL   = 20;   // charge gained per enemy kill
+
+/* ── skeleton constants ── */
+const SKELETON_RENDER_SIZE     = 96;
+const SKELETON_MOVE_SPEED      = 1.6;   // multiplier on base speed
+const SKELETON_ATTACK_RANGE    = 55;
+const SKELETON_ATTACK_COOLDOWN = 900;   // ms
+const SKELETON_CONTACT_DAMAGE  = 15;
 
 /* ── mage constants ── */
 const MAGE_RENDER_SIZE            = 128;  // 80% of player
@@ -118,6 +129,14 @@ const MAGE_ANIM_CONFIG: Record<'run' | 'attack' | 'death', { frames: number; fra
   death:  { frames: 4, frameDuration: 110, loop: false },
 };
 
+/* ── skeleton anim config (vertical sprite sheets) ── */
+const SKELETON_ANIM_CONFIG: Record<'run' | 'attack' | 'death', { frames: number; frameDuration: number; loop: boolean }> = {
+  run:    { frames: 6, frameDuration: 90,  loop: true  },
+  attack: { frames: 4, frameDuration: 100, loop: false },
+  death:  { frames: 5, frameDuration: 110, loop: false },
+};
+const SKELETON_ATTACK_DAMAGE_FRAME = 3; // 0-indexed
+
 /* ── sprite sheet paths ── */
 const PLAYER_SPRITE_FILE: Record<PState, string> = {
   idle:      'Idle',
@@ -131,6 +150,11 @@ const KNIGHT_SPRITE_FILE: Record<'running' | 'attacking' | 'dead', string> = {
   dead:      'Dead',
 };
 const MAGE_SPRITE_FILE: Record<'run' | 'attack' | 'death', string> = {
+  run:    'Run',
+  attack: 'Attack',
+  death:  'Dead',
+};
+const SKELETON_SPRITE_FILE: Record<'run' | 'attack' | 'death', string> = {
   run:    'Run',
   attack: 'Attack',
   death:  'Dead',
@@ -158,12 +182,13 @@ const roundRect = (
   ctx.closePath();
 };
 
-/** Maps mage EState → sprite/anim key */
+/** Maps mage/skeleton EState → sprite/anim key */
 const mageAnimKey = (state: EState): 'run' | 'attack' | 'death' => {
   if (state === 'attacking')              return 'attack';
   if (state === 'dying' || state === 'dead') return 'death';
   return 'run';
 };
+const skeletonAnimKey = mageAnimKey; // same mapping
 
 /* ─── component ─────────────────────────────────────────────── */
 
@@ -176,10 +201,14 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
   const rafRef     = useRef(0);
   const playerSpritesRef = useRef<PlayerSprites>({ idle: null, running: null, attacking: null, dead: null });
   const knightSpritesRef = useRef<KnightSprites>({ running: null, attacking: null, dead: null });
-  const mageSpritesRef   = useRef<MageSprites>({ run: null, attack: null, death: null });
+  const mageSpritesRef     = useRef<MageSprites>({ run: null, attack: null, death: null });
+  const skeletonSpritesRef = useRef<SkeletonSprites>({ run: null, attack: null, death: null });
   const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const bladestormVideoRef = useRef<HTMLVideoElement | null>(null);
+  const bladestormChargeRef = useRef(0);   // 0 → BLADESTORM_CHARGE_MAX
   const [started, setStarted] = useState(false);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
+  const [bladestormPlaying, setBladestormPlaying] = useState(false);
 
   /* ── load sprites + background once on mount ── */
   useEffect(() => {
@@ -201,10 +230,25 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       img.onload  = () => { mageSpritesRef.current[state] = img; };
       img.onerror = () => { mageSpritesRef.current[state] = null; };
     });
+    (Object.keys(SKELETON_SPRITE_FILE) as Array<keyof typeof SKELETON_SPRITE_FILE>).forEach(state => {
+      const img = new Image();
+      img.src = `/enemies/skelly/${SKELETON_SPRITE_FILE[state]}.png`;
+      img.onload  = () => { skeletonSpritesRef.current[state] = img; };
+      img.onerror = () => { skeletonSpritesRef.current[state] = null; };
+    });
     const bg = new Image();
     bg.src = '/images/finalbattlebackground.png';
     bg.onload  = () => { bgImageRef.current = bg; };
     bg.onerror = () => { bgImageRef.current = null; };
+
+    // preload bladestorm video
+    const bsVideo = document.createElement('video');
+    bsVideo.src = '/videos/bladestorm.mp4';
+    bsVideo.preload = 'auto';
+    bsVideo.muted = true;
+    bsVideo.playsInline = true;
+    bsVideo.playbackRate = 3;
+    bladestormVideoRef.current = bsVideo;
   }, []);
 
   /* ── initial game state ── */
@@ -221,6 +265,47 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
     lastSpawn: 0,
     running: true, uid: 0,
   }), []);
+
+  /* ── bladestorm trigger ── */
+  const triggerBladestorm = useCallback(() => {
+    const gs = gsRef.current;
+    if (!gs || !gs.running) return;
+    if (gs.player.state === 'dead') return;
+    if (bladestormChargeRef.current < BLADESTORM_CHARGE_MAX) return;
+
+    bladestormChargeRef.current = 0;  // consume full bar
+    setBladestormPlaying(true);
+
+    // play video — enemies are killed when it finishes
+    const vid = bladestormVideoRef.current;
+    if (vid) {
+      vid.currentTime = 0;
+      vid.playbackRate = 3;
+      vid.play().catch(() => {});
+      vid.onended = () => {
+        // kill all alive enemies after video completes
+        const g = gsRef.current;
+        if (g) {
+          for (const e of g.enemies) {
+            if (e.state === 'dead' || e.state === 'dying') continue;
+            e.state = e.type === 'knight' ? 'dead' : 'dying';
+            e.frameIndex = 0;
+            e.animTimer  = 0;
+          }
+        }
+        setBladestormPlaying(false);
+      };
+    } else {
+      // fallback if video not loaded — kill immediately
+      for (const e of gs.enemies) {
+        if (e.state === 'dead' || e.state === 'dying') continue;
+        e.state = e.type === 'knight' ? 'dead' : 'dying';
+        e.frameIndex = 0;
+        e.animTimer  = 0;
+      }
+      setTimeout(() => setBladestormPlaying(false), 1500);
+    }
+  }, []);
 
   /* ── main effect (only runs after player presses START) ── */
   useEffect(() => {
@@ -250,18 +335,19 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
     /* ── spawners ── */
     const spawnEnemy = (gs: GS, now: number) => {
       const side = (Math.random() * 4) | 0;
-      const m = 32;
+      const pad = 40; // spawn just inside the canvas edges so player sees them appear
       let x = 0, y = 0;
-      if (side === 0)      { x = Math.random() * W; y = -m; }
-      else if (side === 1) { x = W + m; y = Math.random() * H; }
-      else if (side === 2) { x = Math.random() * W; y = H + m; }
-      else                 { x = -m;    y = Math.random() * H; }
+      if (side === 0)      { x = pad + Math.random() * (W - pad * 2); y = pad; }
+      else if (side === 1) { x = W - pad; y = pad + Math.random() * (H - pad * 2); }
+      else if (side === 2) { x = pad + Math.random() * (W - pad * 2); y = H - pad; }
+      else                 { x = pad;    y = pad + Math.random() * (H - pad * 2); }
 
-      const isMage = Math.random() < 0.35;  // 35% mage spawn rate
+      const roll = Math.random();
+      const enemyType: 'knight' | 'mage' | 'skeleton' = roll < 0.30 ? 'skeleton' : roll < 0.60 ? 'mage' : 'knight';
       gs.enemies.push({
         id: gs.uid++, x, y,
         hp: ENEMY_MAX_HP,
-        type: isMage ? 'mage' : 'knight',
+        type: enemyType,
         state: 'running',
         frameIndex: 0, animTimer: 0,
         facing: 1, damageDealt: false,
@@ -331,7 +417,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.fill();
       }
 
-      /* shield orb — always drawn on top of sprite/fallback */
+      /* shield orb — centered on sprite */
       if (p.shieldActive) {
         ctx.save();
         ctx.globalAlpha = 0.38;
@@ -339,7 +425,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.shadowColor = '#1e88e5';
         ctx.shadowBlur  = 22;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, PLAYER_RADIUS + 20, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, RENDER_SIZE * 0.38, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 0.7;
         ctx.strokeStyle = '#90caf9';
@@ -381,10 +467,11 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       if (e.state !== 'dead' && e.state !== 'dying') {
         const hf = e.hp / ENEMY_MAX_HP;
         const bw = ENEMY_RENDER_SIZE * 0.5;
+        const hpY = e.y - ENEMY_RENDER_SIZE * 0.22;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw, 3);
+        ctx.fillRect(e.x - bw / 2, hpY, bw, 3);
         ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
-        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw * hf, 3);
+        ctx.fillRect(e.x - bw / 2, hpY, bw * hf, 3);
       }
     };
 
@@ -419,10 +506,52 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       if (e.state !== 'dead' && e.state !== 'dying') {
         const hf = e.hp / ENEMY_MAX_HP;
         const bw = MAGE_RENDER_SIZE * 0.5;
+        const hpY = e.y - MAGE_RENDER_SIZE * 0.22;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw, 3);
+        ctx.fillRect(e.x - bw / 2, hpY, bw, 3);
         ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
-        ctx.fillRect(e.x - bw / 2, e.y - half - 4, bw * hf, 3);
+        ctx.fillRect(e.x - bw / 2, hpY, bw * hf, 3);
+      }
+    };
+
+    const drawSkeleton = (e: Enemy) => {
+      const key  = skeletonAnimKey(e.state);
+      const scfg = SKELETON_ANIM_CONFIG[key];
+      const img  = skeletonSpritesRef.current[key];
+      const half = SKELETON_RENDER_SIZE / 2;
+
+      if (img && img.complete && img.naturalWidth > 0) {
+        /* horizontal slicing: frames are side-by-side in a single row */
+        const frameW = img.width / scfg.frames;
+        const frameH = img.height;
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        if (e.facing === -1) ctx.scale(-1, 1);
+        ctx.drawImage(
+          img,
+          e.frameIndex * frameW, 0, frameW, frameH,
+          -half, -half, SKELETON_RENDER_SIZE, SKELETON_RENDER_SIZE,
+        );
+        ctx.restore();
+      } else {
+        /* fallback: green circle */
+        ctx.shadowColor = '#76ff03';
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = 'rgba(118,255,3,0.7)';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, ENEMY_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      if (e.state !== 'dead' && e.state !== 'dying') {
+        const hf = e.hp / ENEMY_MAX_HP;
+        const bw = SKELETON_RENDER_SIZE * 0.6;
+        const hpY = e.y - SKELETON_RENDER_SIZE * 0.28;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(e.x - bw / 2, hpY, bw, 3);
+        ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(e.x - bw / 2, hpY, bw * hf, 3);
       }
     };
 
@@ -486,6 +615,26 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         ctx.fillText('SHIELD', sx, sy - 4);
       }
 
+      /* ultimate (bladestorm) charge bar */
+      {
+        const ux = 20, uy = 66, uw = 80, uh = 8;
+        const chargeFrac = bladestormChargeRef.current / BLADESTORM_CHARGE_MAX;
+        const ready = chargeFrac >= 1;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        roundRect(ctx, ux - 2, uy - 2, uw + 4, uh + 4, 3); ctx.fill();
+        ctx.fillStyle = ready ? '#ff6f00' : '#5d4037';
+        roundRect(ctx, ux, uy, uw * Math.min(1, chargeFrac), uh, 2); ctx.fill();
+        if (ready) {
+          ctx.shadowColor = '#ff6f00'; ctx.shadowBlur = 10;
+          roundRect(ctx, ux, uy, uw, uh, 2); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillStyle = ready ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.4)';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(ready ? 'X  READY' : 'X  ULTIMATE', ux, uy - 4);
+      }
+
       /* enemy count */
       ctx.textAlign = 'right';
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
@@ -521,6 +670,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
       /* ── cooldown ticks ── */
       if (p.attackCooldown > 0) p.attackCooldown -= dtMs;
+      // bladestorm charge is gained per kill, no passive tick needed
       if (p.shieldActive) {
         p.shieldTimer -= dtMs;
         if (p.shieldTimer <= 0) { p.shieldActive = false; p.shieldCooldown = SHIELD_COOLDOWN; }
@@ -550,10 +700,15 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
             if (e.state === 'dead' || e.state === 'dying') continue;
             if (dist2(p.x, p.y, e.x, e.y) < MELEE_RADIUS ** 2) {
               burst(gs, e.x, e.y, '#fbbf24', 6);
-              // mage plays death animation; knight snaps straight to dead
-              e.state      = e.type === 'mage' ? 'dying' : 'dead';
+              // mage & skeleton play death animation; knight snaps straight to dead
+              e.state      = e.type === 'knight' ? 'dead' : 'dying';
               e.frameIndex = 0;
               e.animTimer  = 0;
+              // charge ultimate
+              bladestormChargeRef.current = Math.min(
+                BLADESTORM_CHARGE_MAX,
+                bladestormChargeRef.current + BLADESTORM_PER_KILL,
+              );
             }
           }
         }
@@ -609,26 +764,43 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
           e.facing = dx >= 0 ? 1 : -1;
 
-          if (e.type === 'mage') {
-            /* ── mage state machine ── */
+          if (e.type === 'skeleton') {
+            /* ── skeleton state machine (melee) ── */
             if (e.attackCooldown > 0) e.attackCooldown -= dtMs;
 
             if (e.state === 'attacking') {
-              // locked — no movement, animation section handles the transition
+              // locked — no movement, animation section handles transition
             } else {
               // state === 'running'
-              if (len > MAGE_ATTACK_RANGE) {
+              if (len > SKELETON_ATTACK_RANGE) {
                 // chase player
-                e.x += (dx / len) * speed * dt;
-                e.y += (dy / len) * speed * dt;
+                e.x += (dx / len) * speed * SKELETON_MOVE_SPEED * dt;
+                e.y += (dy / len) * speed * SKELETON_MOVE_SPEED * dt;
               } else if (e.attackCooldown <= 0) {
                 // in range, cooldown ready → begin attack
-                e.state             = 'attacking';
-                e.frameIndex        = 0;
-                e.animTimer         = 0;
-                e.projectileSpawned = false;
+                e.state       = 'attacking';
+                e.frameIndex  = 0;
+                e.animTimer   = 0;
+                e.damageDealt = false;
               }
               // else: in range but cooldown not ready → stand still
+            }
+          } else if (e.type === 'mage') {
+            /* ── mage state machine (free movement + ranged) ── */
+            if (e.attackCooldown > 0) e.attackCooldown -= dtMs;
+
+            // always move toward player (free movement)
+            if (e.state !== 'attacking') {
+              e.x += (dx / len) * speed * dt;
+              e.y += (dy / len) * speed * dt;
+            }
+
+            // can attack from any distance when cooldown ready
+            if (e.state !== 'attacking' && e.attackCooldown <= 0) {
+              e.state             = 'attacking';
+              e.frameIndex        = 0;
+              e.animTimer         = 0;
+              e.projectileSpawned = false;
             }
           } else {
             /* ── knight state machine (unchanged) ── */
@@ -663,7 +835,48 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
       /* ── advance enemy animations ── */
       for (const e of gs.enemies) {
-        if (e.type === 'mage') {
+        if (e.type === 'skeleton') {
+          /* ── skeleton animation (vertical slicing) ── */
+          const skey = skeletonAnimKey(e.state);
+          const scfg = SKELETON_ANIM_CONFIG[skey];
+          e.animTimer += dtMs;
+
+          while (e.animTimer >= scfg.frameDuration) {
+            e.animTimer -= scfg.frameDuration;
+
+            // deal damage on designated frame
+            if (e.state === 'attacking' && e.frameIndex === SKELETON_ATTACK_DAMAGE_FRAME && !e.damageDealt) {
+              e.damageDealt = true;
+              if (p.state !== 'dead') {
+                const adx = p.x - e.x;
+                const ady = p.y - e.y;
+                const alen = Math.sqrt(adx * adx + ady * ady) || 1;
+                if (alen <= SKELETON_ATTACK_RANGE && !p.shieldActive) {
+                  p.hp -= SKELETON_CONTACT_DAMAGE;
+                  if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
+                }
+              }
+            }
+
+            e.frameIndex++;
+            if (e.frameIndex >= scfg.frames) {
+              if (scfg.loop) {
+                e.frameIndex = 0;
+              } else {
+                e.frameIndex = scfg.frames - 1;
+                if (e.state === 'attacking') {
+                  // attack done → return to running, start cooldown
+                  e.state          = 'running';
+                  e.frameIndex     = 0;
+                  e.animTimer      = 0;
+                  e.attackCooldown = SKELETON_ATTACK_COOLDOWN;
+                } else if (e.state === 'dying') {
+                  e.state = 'dead';
+                }
+              }
+            }
+          }
+        } else if (e.type === 'mage') {
           /* ── mage animation ── */
           const key  = mageAnimKey(e.state);
           const mcfg = MAGE_ANIM_CONFIG[key];
@@ -752,14 +965,11 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
       /* ── remove finished enemies ── */
       gs.enemies = gs.enemies.filter(e => {
-        if (e.type === 'mage') {
-          // mage is removed once state reaches 'dead' (set at end of dying anim)
-          return e.state !== 'dead';
-        } else {
-          // knight: dead state plays anim then holds last frame → remove at last frame
-          if (e.state !== 'dead') return true;
-          return e.frameIndex < KNIGHT_ANIM_CONFIG.dead.frames - 1;
-        }
+        if (e.state !== 'dead') return true;
+        if (e.type === 'skeleton') return false; // dying → dead transition means fully done
+        if (e.type === 'mage') return false;      // same: dead = animation finished
+        // knight: dead state plays anim then holds last frame → remove at last frame
+        return e.frameIndex < KNIGHT_ANIM_CONFIG.dead.frames - 1;
       });
 
       /* ── update enemy projectiles ── */
@@ -818,7 +1028,8 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       ctx.globalAlpha = 1;
 
       for (const e of gs.enemies) {
-        if (e.type === 'mage') drawMage(e);
+        if (e.type === 'skeleton') drawSkeleton(e);
+        else if (e.type === 'mage') drawMage(e);
         else drawKnight(e);
       }
       drawProjectiles(gs.enemyProjectiles);
@@ -849,6 +1060,10 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
           p.shieldActive = true;
           p.shieldTimer  = SHIELD_DURATION;
         }
+        /* X → bladestorm */
+        if (e.code === 'KeyX') {
+          triggerBladestorm();
+        }
       }
       /* F → toggle fullscreen */
       if (e.code === 'KeyF') {
@@ -856,7 +1071,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         if (!document.fullscreenElement) root?.requestFullscreen();
         else document.exitFullscreen();
       }
-      if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code))
+      if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','KeyX'].includes(e.code))
         e.preventDefault();
     };
     const onUp = (e: KeyboardEvent) => {
@@ -870,7 +1085,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup',   onUp);
     };
-  }, [makeGS, started]);
+  }, [makeGS, started, triggerBladestorm]);
 
   /* ─── render ─────────────────────────────────────────────── */
   return (
@@ -891,6 +1106,42 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         tabIndex={0}
         style={{ width: '100%', height: '100%', display: 'block', outline: 'none' }}
       />
+
+      {/* Bladestorm video overlay */}
+      {bladestormPlaying && (
+        <video
+          ref={(el) => {
+            if (el && bladestormVideoRef.current) {
+              el.srcObject = null;
+              el.src = bladestormVideoRef.current.src;
+              el.playbackRate = 3;
+              el.play().catch(() => {});
+              el.onended = () => {
+                const g = gsRef.current;
+                if (g) {
+                  for (const e of g.enemies) {
+                    if (e.state === 'dead' || e.state === 'dying') continue;
+                    e.state = e.type === 'knight' ? 'dead' : 'dying';
+                    e.frameIndex = 0;
+                    e.animTimer  = 0;
+                  }
+                }
+                setBladestormPlaying(false);
+              };
+            }
+          }}
+          muted
+          playsInline
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover',
+            zIndex: 30,
+            pointerEvents: 'none',
+            opacity: 0.75,
+          }}
+        />
+      )}
 
       {/* ── start overlay ── */}
       {!started && !result && (
@@ -915,7 +1166,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
             fontSize: '12px', fontFamily: 'monospace',
             letterSpacing: '1px',
           }}>
-            WASD move · SPACE attack · SHIFT shield · F fullscreen
+            WASD move · SPACE attack · SHIFT shield · X bladestorm · F fullscreen
           </div>
           <button
             onClick={() => setStarted(true)}
@@ -947,7 +1198,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
           userSelect: 'none', pointerEvents: 'none',
           letterSpacing: '0.5px',
         }}>
-          WASD move · SPACE attack · SHIFT shield · F fullscreen
+          WASD move · SPACE attack · SHIFT shield · X bladestorm · F fullscreen
         </div>
       )}
 

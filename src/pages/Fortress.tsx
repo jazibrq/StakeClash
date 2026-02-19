@@ -70,14 +70,15 @@ const Fortress = () => {
       <Navigation />
 
       <div
-        className="relative z-10 flex gap-4 px-4"
-        style={{ height: 'calc(100vh - 5rem)', paddingTop: '5rem' }}
+        className="relative z-10 flex gap-4 px-4 pb-2"
+        style={{ height: 'calc(100vh - 3.5rem)', paddingTop: '5rem' }}
       >
         {/* ── Fortress grid (dominant) ─────────────────────────── */}
         <div
           className="rounded-xl overflow-hidden flex-1"
           style={{
             minWidth: 0,
+            minHeight: 0,
             background: '#000',
             boxShadow: '0 0 0 1px rgba(255,255,255,0.07), 0 8px 32px rgba(0,0,0,0.8)',
           }}
@@ -90,8 +91,8 @@ const Fortress = () => {
 
         {/* ── Slim sidebar ─────────────────────────────────────── */}
         <div
-          className="flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-4"
-          style={{ width: '240px' }}
+          className="flex-shrink-0 flex flex-col gap-3 overflow-y-auto pb-4 fortress-sidebar"
+          style={{ width: '260px', minHeight: 0 }}
         >
           {/* Wallet metrics */}
           <div className="card-surface rounded-xl p-4 space-y-3">
@@ -134,7 +135,15 @@ const Fortress = () => {
             <div className="space-y-2">
               {(['ore','gold','diamond','mana'] as Resource[]).map(r => (
                 <div key={r} className="flex justify-between items-center">
-                  <span className="text-xs capitalize text-muted-foreground">{r}</span>
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={`/images/resources/${r}logo.png`}
+                      alt={r}
+                      className="w-5 h-5"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                    <span className="text-xs capitalize text-muted-foreground">{r}</span>
+                  </div>
                   <span className="font-mono text-xs">{Math.floor(resources[r])}</span>
                 </div>
               ))}
@@ -142,8 +151,8 @@ const Fortress = () => {
           </div>
 
           {/* Activity tabs */}
-          <div className="card-surface rounded-xl p-4 flex-1 min-h-0">
-            <div className="flex gap-4 mb-3 border-b border-border pb-2">
+          <div className="card-surface rounded-xl p-4 flex-1 min-h-0 flex flex-col">
+            <div className="flex gap-4 mb-3 border-b border-border pb-2 flex-shrink-0">
               {(['matches', 'vault'] as const).map(tab => (
                 <button
                   key={tab}
@@ -158,47 +167,50 @@ const Fortress = () => {
               ))}
             </div>
 
-            {activeTab === 'matches' && (
-              <div className="space-y-2">
-                {matchHistory.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
-                    <div>
-                      <p className="text-xs font-mono">{m.opponent}</p>
-                      <p className="text-xs text-muted-foreground">{m.date} · {m.size}p</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
-                        {m.result}
-                      </p>
-                      <p className={cn('text-xs font-mono', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
-                        {m.awards}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'vault' && (
-              <div className="space-y-2">
-                {vaultActivity.map((a, i) => (
-                  <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
-                    <div className="flex items-center gap-1.5">
-                      {a.type === 'Deposit'
-                        ? <ArrowUpRight className="w-3 h-3 text-primary" />
-                        : <ArrowDownRight className="w-3 h-3 text-muted-foreground" />}
+            {/* Scrollable content area */}
+            <div className="flex-1 min-h-0 overflow-y-auto fortress-sidebar">
+              {activeTab === 'matches' && (
+                <div className="space-y-2">
+                  {matchHistory.map((m, i) => (
+                    <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
                       <div>
-                        <p className="text-xs font-medium">{a.type}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{a.tx}</p>
+                        <p className="text-xs font-mono">{m.opponent}</p>
+                        <p className="text-xs text-muted-foreground">{m.date} · {m.size}p</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
+                          {m.result}
+                        </p>
+                        <p className={cn('text-xs font-mono', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
+                          {m.awards}
+                        </p>
                       </div>
                     </div>
-                    <p className={cn('text-xs font-mono', a.amount.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
-                      {a.amount}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'vault' && (
+                <div className="space-y-2">
+                  {vaultActivity.map((a, i) => (
+                    <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
+                      <div className="flex items-center gap-1.5">
+                        {a.type === 'Deposit'
+                          ? <ArrowUpRight className="w-3 h-3 text-primary" />
+                          : <ArrowDownRight className="w-3 h-3 text-muted-foreground" />}
+                        <div>
+                          <p className="text-xs font-medium">{a.type}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{a.tx}</p>
+                        </div>
+                      </div>
+                      <p className={cn('text-xs font-mono', a.amount.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
+                        {a.amount}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -459,6 +459,21 @@
     @apply bg-muted-foreground;
   }
 
+  /* Fortress sidebar scrollbar — subtle, blends into dark theme */
+  .fortress-sidebar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .fortress-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .fortress-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.12);
+    border-radius: 9999px;
+  }
+  .fortress-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.25);
+  }
+
   /* Animation utilities */
   .animate-glow-pulse {
     animation: glow-pulse 2s ease-in-out infinite;
