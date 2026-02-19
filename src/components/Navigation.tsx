@@ -14,8 +14,9 @@ import skillstackLogo from '@/assets/skillstack-logo.png';
 const navItems = [
   { label: 'Home', path: '/' },
   { label: 'Learn', path: '/learn' },
-  { label: 'Portfolio', path: '/portfolio' },
-  { label: 'Play', path: '/play' },
+  { label: 'Fortress', path: '/fortress' },
+  { label: 'Clash', path: '/clash' },
+  { label: 'Hero', path: '/hero' },
 ];
 
 export const Navigation = () => {
