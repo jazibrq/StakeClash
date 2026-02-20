@@ -77,6 +77,9 @@ interface GS {
   minotaurRageTimer:    number;   // seconds until rage fires; -1 = idle
   minotaurEnrageTimer:  number;   // seconds remaining on enrage buff (0 = not enraged)
   playerParalyzeTimer:  number;   // seconds of post-rage paralysis remaining
+  clashActive:          boolean;  // ultimate clash minigame in progress
+  clashTimer:           number;   // seconds remaining to mash
+  clashPresses:         number;   // space presses so far
 }
 
 interface AfterimageState {
@@ -159,6 +162,8 @@ const MINOTAUR_BOSS_PLAYER_MELEE_DMG  = 20;   // player melee damage vs boss (~2
 const MINOTAUR_BOSS_DAMAGE_FRAME      = 3;    // 0-indexed frame that deals damage
 const MINOTAUR_RAGE_DELAY             = 3.5;  // seconds after boss spawn before rage triggers
 const MINOTAUR_BOSS_ENRAGED_SPEED_MULT = 2.5; // 2.5x speed boost after rage — faster than player
+const CLASH_REQUIRED_PRESSES          = 10;   // spacebar presses needed to win clash
+const CLASH_DURATION                  = 3.5;  // seconds the player has to mash
 
 /* ── dash constants ── */
 const DASH_DISTANCE = 130;   // px — instant snap displacement
@@ -376,15 +381,25 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
   const minotaurBossSpritesRef  = useRef<MinotaurBossSprites>({ walk: null, attack: null, death: null });
   const rageVideoRef    = useRef<HTMLVideoElement | null>(null);
   const rageActiveRef   = useRef(false);
+  const ultClashVideoRef = useRef<HTMLVideoElement | null>(null);
+  const clashActiveRef   = useRef(false);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bladestormVideoRef = useRef<HTMLVideoElement | null>(null);
   const bladestormChargeRef = useRef(0);   // 0 → BLADESTORM_CHARGE_MAX
   const bladestormActiveRef  = useRef(false); // true while bladestorm video plays
+  const bladestormSkipBossDmgRef = useRef(false); // skip boss dmg in onended when clash already applied it
   const afterimageRef = useRef<AfterimageState[]>([]);
+  // DOM refs for clash HUD overlay (updated directly each frame to avoid React re-renders)
+  const clashHudRef       = useRef<HTMLDivElement>(null);
+  const clashProgFillRef  = useRef<HTMLDivElement>(null);
+  const clashTimerFillRef = useRef<HTMLDivElement>(null);
+  const clashCounterRef   = useRef<HTMLSpanElement>(null);
   const [started, setStarted] = useState(autoStart);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
   const [bladestormPlaying, setBladestormPlaying] = useState(false);
   const [ragePlaying, setRagePlaying] = useState(false);
+  const [clashPlaying, setClashPlaying] = useState(false);
+
 
   /* ── load sprites + background once on mount ── */
   useEffect(() => {
@@ -446,6 +461,15 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
     rageVid.playsInline = true;
     rageVid.playbackRate = 2;
     rageVideoRef.current = rageVid;
+
+    // preload ultimate clash video
+    const clashVid = document.createElement('video');
+    clashVid.src = '/videos/ult_clash.mp4';
+    clashVid.preload = 'auto';
+    clashVid.muted = true;
+    clashVid.playsInline = true;
+    clashVid.loop = true;
+    ultClashVideoRef.current = clashVid;
   }, []);
 
   /* ── initial game state ── */
@@ -464,6 +488,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
     running: true, uid: 0,
     wave: 1, waveAnnounceTimer: 0, bossSpawned: false,
     minotaurRageTimer: -1, minotaurEnrageTimer: 0, playerParalyzeTimer: 0,
+    clashActive: false, clashTimer: 0, clashPresses: 0,
   }), []);
 
   /* ── bladestorm trigger ── */
@@ -1122,6 +1147,27 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         ctx.fillText(subText, W / 2, H / 2 + 18);
         ctx.restore();
       }
+
+      /* ultimate clash HUD — updated via DOM refs so it renders above the video overlays */
+      if (gs.clashActive) {
+        const pct  = gs.clashPresses / CLASH_REQUIRED_PRESSES;
+        const tPct = Math.max(0, gs.clashTimer / CLASH_DURATION);
+        if (clashHudRef.current)      clashHudRef.current.style.display = 'flex';
+        if (clashProgFillRef.current) {
+          clashProgFillRef.current.style.width           = `${Math.min(100, pct * 100)}%`;
+          const bc = pct > 0.66 ? '#22c55e' : pct > 0.33 ? '#f59e0b' : '#ef4444';
+          clashProgFillRef.current.style.backgroundColor = bc;
+          clashProgFillRef.current.style.boxShadow       = `0 0 12px ${bc}`;
+        }
+        if (clashTimerFillRef.current) {
+          clashTimerFillRef.current.style.width           = `${tPct * 100}%`;
+          clashTimerFillRef.current.style.backgroundColor = tPct > 0.4 ? '#60a5fa' : '#f87171';
+        }
+        if (clashCounterRef.current)
+          clashCounterRef.current.textContent = `${gs.clashPresses} / ${CLASH_REQUIRED_PRESSES}   (${gs.clashTimer.toFixed(1)}s)`;
+      } else if (clashHudRef.current) {
+        clashHudRef.current.style.display = 'none';
+      }
     };
 
     /* ── game loop ── */
@@ -1244,8 +1290,8 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         }
       }
 
-      /* ── movement (locked while attacking, dead, or paralyzed) ── */
-      if (p.state !== 'attacking' && p.state !== 'dead' && gs.playerParalyzeTimer <= 0) {
+      /* ── movement (locked while attacking, dead, paralyzed, or clashing) ── */
+      if (p.state !== 'attacking' && p.state !== 'dead' && gs.playerParalyzeTimer <= 0 && !gs.clashActive) {
         let mx = 0, my = 0;
         if (gs.keys['KeyW'] || gs.keys['ArrowUp'])    my -= 1;
         if (gs.keys['KeyS'] || gs.keys['ArrowDown'])  my += 1;
@@ -1268,8 +1314,8 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       }
 
       /* ── enemy state machines + movement ── */
-      if (p.state !== 'dead' && !bladestormActiveRef.current && !rageActiveRef.current) {
-        const speed = (ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9) * (gs.wave === 2 ? 1.5 : 1.0);
+      if (p.state !== 'dead' && !bladestormActiveRef.current && !rageActiveRef.current && !clashActiveRef.current) {
+        const speed = (ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9) * (gs.wave === 2 ? 1.2 : 1.0);
 
         for (const e of gs.enemies) {
           if (e.state === 'dying' || e.state === 'dead') continue;
@@ -1630,7 +1676,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       }
 
       /* ── update enemy projectiles ── */
-      for (const proj of gs.enemyProjectiles) {
+      if (!clashActiveRef.current && !rageActiveRef.current && !bladestormActiveRef.current) for (const proj of gs.enemyProjectiles) {
         proj.x += proj.vx * dt;
         proj.y += proj.vy * dt;
 
@@ -1703,38 +1749,46 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         gs.minotaurRageTimer -= dt;
         if (gs.minotaurRageTimer <= 0) {
           gs.minotaurRageTimer = -1;
-          rageActiveRef.current = true;
-          setRagePlaying(true);
-          const vid = rageVideoRef.current;
-          if (vid) {
-            vid.currentTime = 0;
-            vid.playbackRate = 2;
-            vid.play().catch(() => {});
-            vid.onended = () => {
-              rageActiveRef.current = false;
-              setRagePlaying(false);
-              const g = gsRef.current;
-              if (g) {
-                g.minotaurEnrageTimer = 5.0;
-                g.playerParalyzeTimer = 1.0;
-              }
-            };
+
+          // If player's ultimate bar is full → trigger clash instead of immediate rage
+          if (bladestormChargeRef.current >= BLADESTORM_CHARGE_MAX) {
+            bladestormChargeRef.current = 0;  // consume the bar
+            gs.clashActive  = true;
+            gs.clashTimer   = CLASH_DURATION;
+            gs.clashPresses = 0;
+            clashActiveRef.current = true;
+            setClashPlaying(true);
+            const cv = ultClashVideoRef.current;
+            if (cv) { cv.currentTime = 0; cv.play().catch(() => {}); }
           } else {
-            setTimeout(() => {
-              rageActiveRef.current = false;
-              setRagePlaying(false);
-              const g = gsRef.current;
-              if (g) { g.minotaurEnrageTimer = 5.0; g.playerParalyzeTimer = 1.0; }
-            }, 2000);
+            // No clash — normal rage
+            rageActiveRef.current = true;
+            setRagePlaying(true);
           }
         }
       }
 
+      /* ── clash tick ── */
+      if (gs.clashActive) {
+        gs.clashTimer -= dt;
+        if (gs.clashTimer <= 0) {
+          // FAIL — player didn't mash enough; rage wins
+          gs.clashActive = false;
+          clashActiveRef.current = false;
+          setClashPlaying(false);
+          const cv = ultClashVideoRef.current;
+          if (cv) { cv.pause(); cv.currentTime = 0; }
+          // Play rage video as normal enrage
+          rageActiveRef.current = true;
+          setRagePlaying(true);
+        }
+      }
+
       /* ── spawn (stops once boss has spawned) ── */
-      const spawnInterval = gs.wave === 2 ? 2250 : 4500;
+      const spawnInterval = gs.wave === 2 ? 3000 : 4500;
       if (!gs.bossSpawned && now - gs.lastSpawn > spawnInterval) {
         spawnEnemy(gs, now);
-        if (gs.wave === 2) spawnEnemy(gs, now); // twice as many in wave 2
+        if (gs.wave === 2 && Math.random() < 0.70) spawnEnemy(gs, now); // bonus spawn for wave 2
       }
 
       /* ── player HP regen (2 hp/s, capped at max) ── */
@@ -1819,10 +1873,32 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         const p = gs.player;
         const canAttack = p.state !== 'attacking' && p.state !== 'dead' && p.attackCooldown <= 0 && gs.playerParalyzeTimer <= 0;
 
-        /* SPACE → melee attack */
-        if (e.code === 'Space' && canAttack) {
-          transitionState(p, 'attacking');
-          p.attackCooldown = ATTACK_COOLDOWN;
+        /* SPACE → melee attack OR clash mash */
+        if (e.code === 'Space') {
+          if (gs.clashActive) {
+            // clash mash — don't attack, just count presses
+            gs.clashPresses++;
+            if (gs.clashPresses >= CLASH_REQUIRED_PRESSES) {
+              // WIN: bladestorm overwhelms the rage — deal 50% boss HP + play bladestorm
+              gs.clashActive = false;
+              clashActiveRef.current = false;
+              setClashPlaying(false);
+              const cv = ultClashVideoRef.current;
+              if (cv) { cv.pause(); cv.currentTime = 0; }
+              for (const en of gs.enemies) {
+                if (en.type === 'minotaur_boss' && en.state !== 'dead' && en.state !== 'dying') {
+                  en.hp = Math.max(1, en.hp - Math.round(MINOTAUR_BOSS_MAX_HP * 0.5));
+                }
+              }
+              // Play bladestorm as victory visual; boss dmg already applied above, skip it in onended
+              bladestormSkipBossDmgRef.current = true;
+              bladestormActiveRef.current = true;
+              setBladestormPlaying(true);
+            }
+          } else if (canAttack) {
+            transitionState(p, 'attacking');
+            p.attackCooldown = ATTACK_COOLDOWN;
+          }
         }
         /* F → shield */
         if (e.code === 'KeyF' &&
@@ -1915,6 +1991,69 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         style={{ width: '100%', height: '100%', display: 'block', outline: 'none' }}
       />
 
+      {/* Ultimate Clash HUD — above all video overlays, updated via DOM refs */}
+      <div
+        ref={clashHudRef}
+        style={{
+          display: 'none',
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '440px',
+          padding: '24px 28px 20px',
+          background: 'rgba(0,0,0,0.82)',
+          borderRadius: '12px',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 40,
+          pointerEvents: 'none',
+          border: '1px solid rgba(255,215,0,0.25)',
+          boxShadow: '0 0 40px rgba(255,215,0,0.1)',
+        }}
+      >
+        <div style={{ color: '#ffd700', fontFamily: 'monospace', fontWeight: 900, fontSize: '22px', letterSpacing: '2px' }}>
+          ULTIMATE CLASH!
+        </div>
+        <div style={{ color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace', fontSize: '13px', textAlign: 'center' }}>
+          MASH SPACE TO BREAK THE MINOTAUR ULTIMATE!
+        </div>
+        <div style={{ width: '380px', height: '20px', background: 'rgba(255,255,255,0.15)', borderRadius: '4px', overflow: 'hidden' }}>
+          <div ref={clashProgFillRef} style={{ height: '100%', width: '0%', borderRadius: '4px', backgroundColor: '#22c55e', transition: 'none' }} />
+        </div>
+        <div style={{ width: '380px', height: '6px', background: 'rgba(255,255,255,0.12)', borderRadius: '2px', overflow: 'hidden' }}>
+          <div ref={clashTimerFillRef} style={{ height: '100%', width: '100%', borderRadius: '2px', backgroundColor: '#60a5fa', transition: 'none' }} />
+        </div>
+        <span ref={clashCounterRef} style={{ color: 'rgba(255,255,255,0.9)', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px' }}>
+          0 / {CLASH_REQUIRED_PRESSES}   ({CLASH_DURATION.toFixed(1)}s)
+        </span>
+      </div>
+
+      {/* Ult Clash video overlay */}
+      {clashPlaying && (
+        <video
+          ref={(el) => {
+            if (el && ultClashVideoRef.current) {
+              el.src = ultClashVideoRef.current.src;
+              el.loop = true;
+              el.play().catch(() => {});
+            }
+          }}
+          muted
+          playsInline
+          loop
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover',
+            zIndex: 32,
+            pointerEvents: 'none',
+            opacity: 0.95,
+          }}
+        />
+      )}
+
       {/* Rage video overlay */}
       {ragePlaying && (
         <video
@@ -1923,6 +2062,12 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
               el.src = rageVideoRef.current.src;
               el.playbackRate = 2;
               el.play().catch(() => {});
+              el.onended = () => {
+                rageActiveRef.current = false;
+                setRagePlaying(false);
+                const g = gsRef.current;
+                if (g) { g.minotaurEnrageTimer = 5.0; g.playerParalyzeTimer = 1.0; }
+              };
             }
           }}
           muted
@@ -1953,8 +2098,11 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
                   for (const e of g.enemies) {
                     if (e.state === 'dead' || e.state === 'dying') continue;
                     if (e.type === 'boss' || e.type === 'minotaur_boss') {
-                      const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * 0.25);
-                      e.hp = Math.max(1, e.hp - dmg);
+                      // skip boss damage if clash win already dealt it
+                      if (!bladestormSkipBossDmgRef.current) {
+                        const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * 0.25);
+                        e.hp = Math.max(1, e.hp - dmg);
+                      }
                     } else {
                       e.state = e.type === 'knight' ? 'dead' : 'dying';
                       e.frameIndex = 0;
@@ -1962,7 +2110,9 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
                     }
                   }
                 }
+                bladestormSkipBossDmgRef.current = false;
                 setBladestormPlaying(false);
+                bladestormActiveRef.current = false;
               };
             }
           }}
