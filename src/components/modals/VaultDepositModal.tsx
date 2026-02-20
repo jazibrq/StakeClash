@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Modal, ModalContent } from '@/components/ui/modal';
 import { ChevronDown, Loader2, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { depositToTreasury } from '@/lib/vault';
+import { useWalletContext } from '@/contexts/WalletContext';
 
 /* ─── Assets ─────────────────────────────────────────────────────── */
 
@@ -35,10 +37,12 @@ interface VaultDepositModalProps {
 }
 
 export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBalance, isHederaTestnet }: VaultDepositModalProps) => {
+  const { switchToHederaTestnet } = useWalletContext();
   const [asset, setAsset]               = useState<VaultAsset>(ASSETS[0]);
   const [amount, setAmount]             = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [step, setStep]                 = useState<'input' | 'pending' | 'success'>('input');
+  const [txError, setTxError]           = useState<string | null>(null);
   const dropdownRef                     = useRef<HTMLDivElement>(null);
 
   /* close dropdown on outside click */
@@ -52,21 +56,39 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    setTxError(null);
     setStep('pending');
-    // TODO: replace with real contract interaction
-    setTimeout(() => {
+
+    try {
+      if (mode === 'deposit' && asset.symbol === 'HBAR') {
+        if (!isHederaTestnet) {
+          await switchToHederaTestnet();
+          setStep('input');
+          setTxError('Network switched to Hedera Testnet. Click Deposit again.');
+          return;
+        }
+        await depositToTreasury(amount);
+      } else {
+        // Non-HBAR or withdraw: keep mock flow for now
+        await new Promise(r => setTimeout(r, 2400));
+      }
+
       setStep('success');
       const parsed = parseFloat(amount);
       if (parsed > 0 && onTransaction) {
         onTransaction(asset.symbol, parsed, mode);
       }
-    }, 2400);
+    } catch (err) {
+      setStep('input');
+      setTxError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const handleClose = () => {
     setStep('input');
     setAmount('');
+    setTxError(null);
     onClose();
   };
 
@@ -203,6 +225,10 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
                 </button>
               </div>
             </div>
+
+            {txError && (
+              <p className="mt-3 text-xs text-red-400 text-center">{txError}</p>
+            )}
 
             {/* action button */}
             <Button

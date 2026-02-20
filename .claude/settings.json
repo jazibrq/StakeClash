@@ -3,7 +3,10 @@
     "allow": [
       "Bash(git pull:*)",
       "Bash(npx hardhat compile:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:docs.hedera.com)"
     ]
   }
 }
