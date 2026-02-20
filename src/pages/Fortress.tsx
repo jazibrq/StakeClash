@@ -222,6 +222,8 @@ const Fortress = () => {
           onClose={() => setModalType(null)}
           mode={modalType}
           onTransaction={handleTransaction}
+          walletBalance={wallet?.balance}
+          isHederaTestnet={wallet?.isHederaTestnet}
         />
       )}
     </div>

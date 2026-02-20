@@ -28,9 +28,13 @@ interface VaultDepositModalProps {
   mode:    'deposit' | 'withdraw';
   /** Called after a successful deposit/withdraw with token symbol and amount */
   onTransaction?: (token: string, amount: number, mode: 'deposit' | 'withdraw') => void;
+  /** Native token balance from the wallet (e.g. HBAR on Hedera Testnet) */
+  walletBalance?: string | null;
+  /** Whether the wallet is on Hedera Testnet */
+  isHederaTestnet?: boolean;
 }
 
-export const VaultDepositModal = ({ open, onClose, mode, onTransaction }: VaultDepositModalProps) => {
+export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBalance, isHederaTestnet }: VaultDepositModalProps) => {
   const [asset, setAsset]               = useState<VaultAsset>(ASSETS[0]);
   const [amount, setAmount]             = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -66,6 +70,25 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction }: VaultD
     onClose();
   };
 
+  /* Resolve display balance for the selected asset */
+  const displayBalance = (() => {
+    // HBAR: show real balance when on Hedera Testnet
+    if (asset.symbol === 'HBAR' && isHederaTestnet && walletBalance) {
+      return `${parseFloat(walletBalance).toFixed(2)} HBAR`;
+    }
+    // ETH: show real balance when NOT on Hedera Testnet (mainnet / other EVM)
+    if (asset.symbol === 'ETH' && !isHederaTestnet && walletBalance) {
+      return `${parseFloat(walletBalance).toFixed(4)} ETH`;
+    }
+    return '—';
+  })();
+
+  const maxAmount = (() => {
+    if (asset.symbol === 'HBAR' && isHederaTestnet && walletBalance) return walletBalance;
+    if (asset.symbol === 'ETH' && !isHederaTestnet && walletBalance) return walletBalance;
+    return null;
+  })();
+
   const label = mode === 'deposit' ? 'Deposit' : 'Withdraw';
   const valid = amount && parseFloat(amount) > 0;
 
@@ -91,7 +114,7 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction }: VaultD
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground">You {mode}</span>
                 <span className="text-xs text-muted-foreground">
-                  Balance: <span className="font-mono">—</span>
+                  Balance: <span className="font-mono">{displayBalance}</span>
                 </span>
               </div>
 
@@ -165,10 +188,15 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction }: VaultD
                 </div>
               </div>
 
-              {/* max button */}
               <div className="flex justify-end mt-2">
                 <button
-                  onClick={() => setAmount('0')} // TODO: real balance
+                  onClick={() => {
+                    if (maxAmount) {
+                      // Leave a small gas reserve
+                      const max = Math.max(0, parseFloat(maxAmount) - 0.5);
+                      setAmount(max.toFixed(4));
+                    }
+                  }}
                   className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                 >
                   MAX
