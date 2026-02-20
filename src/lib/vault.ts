@@ -1,7 +1,9 @@
 import { BrowserProvider, parseEther } from "ethers";
 
 const HEDERA_TESTNET_CHAIN_ID = 296n;
-const TREASURY_ADDRESS = import.meta.env.VITE_TREASURY_EVM_ADDRESS as string;
+const TREASURY_ADDRESS =
+  import.meta.env.VITE_TREASURY_EVM_ADDRESS ||
+  "0x0d34Af40657D173b763Dd2CACD76300FF1F12485";
 
 /**
  * Connects MetaMask, verifies Hedera Testnet (chainId 296),
@@ -9,11 +11,6 @@ const TREASURY_ADDRESS = import.meta.env.VITE_TREASURY_EVM_ADDRESS as string;
  * Returns the transaction hash.
  */
 export async function depositToTreasury(amountHbar: string): Promise<string> {
-  if (!TREASURY_ADDRESS) {
-    throw new Error(
-      "VITE_TREASURY_EVM_ADDRESS is not set. Add it to your root .env file and restart the dev server."
-    );
-  }
   if (!window.ethereum) throw new Error("MetaMask not found");
 
   const provider = new BrowserProvider(window.ethereum);
