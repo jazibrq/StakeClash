@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(npx hardhat compile:*)",
+      "Bash(python3:*)"
     ]
   }
 }
