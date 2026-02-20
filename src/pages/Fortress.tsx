@@ -4,8 +4,9 @@ import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { FortressResourceDistrict, Resources } from '@/components/FortressResourceDistrict';
 import { Button } from '@/components/ui/button';
-import { TransactionModal } from '@/components/modals/TransactionModal';
+import { VaultDepositModal } from '@/components/modals/VaultDepositModal';
 import { useWalletContext } from '@/contexts/WalletContext';
+import { usePlayerData } from '@/hooks/usePlayerData';
 import { Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,23 +21,10 @@ const PROD_PER_SEC: Record<Resource, number> = {
   mana:    0.8 / 3600,
 };
 
-const matchHistory = [
-  { date: '2024-01-15', opponent: '0x5e6f...7g8h', size: 4,  result: 'Won',  awards: '+0.45' },
-  { date: '2024-01-14', opponent: '0x9i0j...1k2l', size: 2,  result: 'Lost', awards: '-0.00' },
-  { date: '2024-01-13', opponent: '0x3m4n...5o6p', size: 8,  result: 'Won',  awards: '+1.20' },
-  { date: '2024-01-12', opponent: '0x7q8r...9s0t', size: 4,  result: 'Won',  awards: '+0.38' },
-  { date: '2024-01-11', opponent: '0x1u2v...3w4x', size: 2,  result: 'Lost', awards: '-0.00' },
-];
-
-const vaultActivity = [
-  { date: '2024-01-15', type: 'Deposit',  amount: '+2.00', tx: '0xabc...123' },
-  { date: '2024-01-10', type: 'Withdraw', amount: '-0.85', tx: '0xdef...456' },
-  { date: '2024-01-05', type: 'Deposit',  amount: '+5.00', tx: '0xghi...789' },
-];
-
 /* ─── Page ──────────────────────────────────────────────────────── */
 const Fortress = () => {
   const wallet = useWalletContext();
+  const player = usePlayerData(wallet?.address ?? null);
 
   const [modalType, setModalType]   = useState<'deposit' | 'withdraw' | null>(null);
   const [activeTab, setActiveTab]   = useState<'matches' | 'vault'>('matches');
@@ -59,9 +47,16 @@ const Fortress = () => {
     /* Could trigger a toast / contract call here */
   };
 
-  /* Mock wallet-derived values (swap for real contract reads) */
-  const deposited  = wallet?.address ? '12.50 ETH' : '—';
-  const yieldEarned = wallet?.address ? '4.28 ETH'  : '—';
+  /* Wallet-derived values */
+  const deposited   = wallet?.address && player.totalDeposited > 0
+    ? `${player.totalDeposited.toFixed(2)}`
+    : '—';
+  const yieldEarned = '—'; // TODO: compute from on-chain yield
+
+  const handleTransaction = (token: string, amount: number, txMode: 'deposit' | 'withdraw') => {
+    if (txMode === 'deposit')  player.recordDeposit(token, amount);
+    if (txMode === 'withdraw') player.recordWithdraw(token, amount);
+  };
 
   return (
     <div className="h-screen overflow-hidden">
@@ -171,11 +166,14 @@ const Fortress = () => {
             <div className="flex-1 min-h-0 overflow-y-auto fortress-sidebar">
               {activeTab === 'matches' && (
                 <div className="space-y-2">
-                  {matchHistory.map((m, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
+                  {player.matchHistory.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No matches yet</p>
+                  )}
+                  {player.matchHistory.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between py-1 border-t border-border first:border-0">
                       <div>
                         <p className="text-xs font-mono">{m.opponent}</p>
-                        <p className="text-xs text-muted-foreground">{m.date} · {m.size}p</p>
+                        <p className="text-xs text-muted-foreground">{new Date(m.date).toLocaleDateString()} · {m.size}p</p>
                       </div>
                       <div className="text-right">
                         <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
@@ -192,19 +190,22 @@ const Fortress = () => {
 
               {activeTab === 'vault' && (
                 <div className="space-y-2">
-                  {vaultActivity.map((a, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 border-t border-border first:border-0">
+                  {player.vaultActivity.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No vault activity yet</p>
+                  )}
+                  {player.vaultActivity.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between py-1 border-t border-border first:border-0">
                       <div className="flex items-center gap-1.5">
                         {a.type === 'Deposit'
                           ? <ArrowUpRight className="w-3 h-3 text-primary" />
                           : <ArrowDownRight className="w-3 h-3 text-muted-foreground" />}
                         <div>
-                          <p className="text-xs font-medium">{a.type}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{a.tx}</p>
+                          <p className="text-xs font-medium">{a.type} {a.token}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{new Date(a.date).toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <p className={cn('text-xs font-mono', a.amount.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
-                        {a.amount}
+                      <p className={cn('text-xs font-mono', a.type === 'Deposit' ? 'text-primary' : 'text-muted-foreground')}>
+                        {a.type === 'Deposit' ? '+' : '-'}{a.amount.toFixed(2)} {a.token}
                       </p>
                     </div>
                   ))}
@@ -216,11 +217,11 @@ const Fortress = () => {
       </div>
 
       {modalType && (
-        <TransactionModal
+        <VaultDepositModal
           open={!!modalType}
           onClose={() => setModalType(null)}
-          type={modalType}
-          maxAmount="12.50"
+          mode={modalType}
+          onTransaction={handleTransaction}
         />
       )}
     </div>

@@ -22,6 +22,8 @@ function shortenAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+const WALLET_SESSION_KEY = 'stakeclash_wallet_session';
+
 export function useWallet() {
   const [state, setState] = useState<WalletState>({
     address: null,
@@ -45,6 +47,7 @@ export function useWallet() {
       })) as string[];
 
       if (accounts.length > 0) {
+        localStorage.setItem(WALLET_SESSION_KEY, 'connected');
         setState({
           address: accounts[0],
           isConnected: true,
@@ -65,6 +68,7 @@ export function useWallet() {
   }, []);
 
   const disconnect = useCallback(() => {
+    localStorage.removeItem(WALLET_SESSION_KEY);
     setState({
       address: null,
       isConnected: false,
@@ -82,6 +86,7 @@ export function useWallet() {
       const accounts = args[0] as string[];
       if (accounts.length === 0) {
         // User disconnected from MetaMask
+        localStorage.removeItem(WALLET_SESSION_KEY);
         setState({
           address: null,
           isConnected: false,
@@ -103,26 +108,36 @@ export function useWallet() {
     };
   }, []);
 
-  // Check if already connected on mount
+  // Auto-reconnect: if user previously connected, silently restore session
   useEffect(() => {
     const ethereum = window.ethereum;
     if (!ethereum) return;
 
+    const hadSession = localStorage.getItem(WALLET_SESSION_KEY) === 'connected';
+
+    // Use eth_requestAccounts for returning users (prompts only if not already authorised)
+    // Use eth_accounts for fresh visits (never prompts)
+    const method = hadSession ? 'eth_requestAccounts' : 'eth_accounts';
+
     ethereum
-      .request({ method: 'eth_accounts' })
+      .request({ method })
       .then((accounts) => {
         const accts = accounts as string[];
         if (accts.length > 0) {
+          localStorage.setItem(WALLET_SESSION_KEY, 'connected');
           setState({
             address: accts[0],
             isConnected: true,
             isConnecting: false,
             error: null,
           });
+        } else if (hadSession) {
+          // Session flag exists but MetaMask returned no accounts – clean up
+          localStorage.removeItem(WALLET_SESSION_KEY);
         }
       })
       .catch(() => {
-        // silently ignore
+        // silently ignore – user may have rejected the popup
       });
   }, []);
 
