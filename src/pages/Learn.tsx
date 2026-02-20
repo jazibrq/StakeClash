@@ -2,6 +2,7 @@ import { Navigation } from '@/components/Navigation';
 import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { Footer } from '@/components/layout/Footer';
+import { PartnersBanner } from '@/components/home/PartnersBanner';
 
 /* ─── small reusable pieces ─────────────────────────────── */
 
@@ -378,6 +379,7 @@ const Learn = () => (
 
       </div>
 
+      <PartnersBanner className="mt-16" />
       <Footer />
     </main>
   </div>

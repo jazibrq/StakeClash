@@ -5,8 +5,7 @@ import { GrainOverlay } from '@/components/GrainOverlay';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/ui/shared';
 import { TransactionModal } from '@/components/modals/TransactionModal';
-import { PartnersBanner } from '@/components/home/PartnersBanner';
-import { Footer } from '@/components/layout/Footer';
+
 import {
   Wallet, TrendingUp, Gift, CheckCircle2,
   ArrowUpRight, ArrowDownRight, RefreshCw,
@@ -405,11 +404,7 @@ const Portfolio = () => {
 
       </main>
 
-      {/* Partners Banner */}
-      <PartnersBanner className="mt-20 relative z-10" />
 
-      {/* Footer */}
-      <Footer className="relative z-10" />
 
       {/* Transaction Modal */}
       {modalType && (

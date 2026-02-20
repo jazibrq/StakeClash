@@ -1,111 +1,149 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { Button } from '@/components/ui/button';
-import { PartnersBanner } from '@/components/home/PartnersBanner';
-import { Footer } from '@/components/layout/Footer';
-import { Shield, Zap, Wind, Brain, Star, Trophy, Swords } from 'lucide-react';
+
+import { Shield, Zap, Wind, Swords } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+/* ── Animated sprite canvas ── */
+const AnimatedSprite = ({
+  src, frames, frameWidth, frameHeight, frameDuration = 150, size = 80,
+}: {
+  src: string; frames: number; frameWidth: number; frameHeight: number;
+  frameDuration?: number; size?: number;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef    = useRef<HTMLImageElement | null>(null);
+  const frameRef  = useRef(0);
+  const timerRef  = useRef(0);
+  const rafRef    = useRef(0);
+
+  const draw = useCallback(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    const img = imgRef.current;
+    if (!ctx || !img || !img.complete) return;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(
+      img,
+      frameRef.current * frameWidth, 0, frameWidth, frameHeight,
+      0, 0, size, size,
+    );
+  }, [frameWidth, frameHeight, size]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => { imgRef.current = img; draw(); };
+    imgRef.current = img;
+  }, [src, draw]);
+
+  useEffect(() => {
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = now - last; last = now;
+      timerRef.current += dt;
+      if (timerRef.current >= frameDuration) {
+        timerRef.current -= frameDuration;
+        frameRef.current = (frameRef.current + 1) % frames;
+        draw();
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [frames, frameDuration, draw]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{ width: size, height: size, imageRendering: 'pixelated' }}
+    />
+  );
+};
 
 const heroes = [
   {
     id: 1,
-    name: 'Iron Vanguard',
+    name: 'Samurai Commander',
     class: 'Warrior',
-    tier: 'S',
-    description: 'An indomitable force on the battlefield. Commands the front line with unbreakable resolve.',
-    stats: { power: 72, defense: 95, speed: 48, strategy: 61 },
-    wins: 142,
-    losses: 31,
+    description: 'A master of the blade who leads from the front. Unmatched discipline forged through a thousand battles.',
+    stats: { power: 85, defense: 78, speed: 72 },
     color: 'from-cyan-500/20 to-blue-600/10',
     accent: 'text-cyan-400',
     border: 'border-cyan-500/30',
-    abilities: ['Shield Bash', 'Fortify', 'Last Stand'],
+    abilities: ['Blade Rush', 'Fortify', 'Last Stand'],
+    idleSprite: { src: '/heroes/Idle.png', frames: 6, frameWidth: 128, frameHeight: 128 },
   },
   {
     id: 2,
     name: 'Shadow Breaker',
     class: 'Rogue',
-    tier: 'A',
     description: 'Strikes from the darkness with lethal precision. No target escapes the shadows.',
-    stats: { power: 88, defense: 42, speed: 97, strategy: 74 },
-    wins: 98,
-    losses: 44,
+    stats: { power: 88, defense: 42, speed: 97 },
     color: 'from-violet-500/20 to-purple-700/10',
     accent: 'text-violet-400',
     border: 'border-violet-500/30',
     abilities: ['Backstab', 'Vanish', 'Smoke Screen'],
+    idleSprite: { src: '/heroes/Knight_3/Idle.png', frames: 4, frameWidth: 128, frameHeight: 128 },
   },
   {
     id: 3,
     name: 'Storm Caller',
     class: 'Mage',
-    tier: 'S',
     description: 'Wields the raw power of the storm. Devastates entire lobbies with arcane fury.',
-    stats: { power: 98, defense: 35, speed: 62, strategy: 88 },
-    wins: 201,
-    losses: 58,
+    stats: { power: 98, defense: 35, speed: 62 },
     color: 'from-amber-500/20 to-orange-600/10',
     accent: 'text-amber-400',
     border: 'border-amber-500/30',
     abilities: ['Chain Lightning', 'Arcane Surge', 'Tempest'],
+    idleSprite: { src: '/heroes/Lightning Mage/Idle.png', frames: 7, frameWidth: 128, frameHeight: 128 },
   },
   {
     id: 4,
     name: 'Gold Keeper',
     class: 'Strategist',
-    tier: 'A',
     description: 'Controls the economy of war. Outmaneuvers opponents through superior planning.',
-    stats: { power: 55, defense: 68, speed: 58, strategy: 99 },
-    wins: 167,
-    losses: 40,
+    stats: { power: 55, defense: 68, speed: 58 },
     color: 'from-emerald-500/20 to-teal-600/10',
     accent: 'text-emerald-400',
     border: 'border-emerald-500/30',
     abilities: ['Market Control', 'Yield Harvest', 'Grand Scheme'],
+    idleSprite: { src: '/heroes/Minotaur_1/Idle.png', frames: 10, frameWidth: 128, frameHeight: 128 },
   },
   {
     id: 5,
     name: 'Void Hunter',
     class: 'Ranger',
-    tier: 'B',
     description: 'Patrols the edge of reality. A relentless tracker with unmatched ranged precision.',
-    stats: { power: 80, defense: 54, speed: 83, strategy: 66 },
-    wins: 74,
-    losses: 52,
+    stats: { power: 80, defense: 54, speed: 83 },
     color: 'from-red-500/20 to-rose-700/10',
     accent: 'text-red-400',
     border: 'border-red-500/30',
     abilities: ["Void Arrow", "Mark Target", "Hunter's Instinct"],
+    idleSprite: { src: '/heroes/Ninja_Peasant/Idle.png', frames: 6, frameWidth: 96, frameHeight: 96 },
   },
   {
     id: 6,
     name: 'Steel Forge',
     class: 'Engineer',
-    tier: 'B',
     description: 'Builds unstoppable war machines. Turns the tide of battle through superior technology.',
-    stats: { power: 65, defense: 88, speed: 40, strategy: 82 },
-    wins: 55,
-    losses: 38,
+    stats: { power: 65, defense: 88, speed: 40 },
     color: 'from-slate-500/20 to-gray-700/10',
     accent: 'text-slate-300',
     border: 'border-slate-500/30',
     abilities: ['Deploy Turret', 'Iron Armor', 'Overclock'],
+    idleSprite: { src: '/heroes/Wanderer Magican/Idle.png', frames: 8, frameWidth: 128, frameHeight: 128 },
   },
 ];
-
-const tierColor: Record<string, string> = {
-  S: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-  A: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
-  B: 'text-slate-300 bg-slate-500/10 border-slate-500/30',
-};
 
 const statIcons: Record<string, React.ReactNode> = {
   power: <Swords className="w-3 h-3" />,
   defense: <Shield className="w-3 h-3" />,
   speed: <Wind className="w-3 h-3" />,
-  strategy: <Brain className="w-3 h-3" />,
 };
 
 const StatBar = ({ label, value, accent }: { label: string; value: number; accent: string }) => (
@@ -173,38 +211,25 @@ const Hero = () => {
                       />
                     )}
 
-                    {/* Tier badge */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={cn(
-                        'text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest',
-                        tierColor[hero.tier]
-                      )}>
-                        Tier {hero.tier}
-                      </span>
-                      {selectedHero.id === hero.id && (
-                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                    {/* Hero sprite / placeholder */}
+                    <div className="w-full h-44 mb-3 flex items-center justify-center">
+                      {hero.idleSprite ? (
+                        <AnimatedSprite
+                          src={hero.idleSprite.src}
+                          frames={hero.idleSprite.frames}
+                          frameWidth={hero.idleSprite.frameWidth}
+                          frameHeight={hero.idleSprite.frameHeight}
+                          size={170}
+                        />
+                      ) : (
+                        <Shield
+                          className={cn('w-12 h-12 opacity-20 group-hover:opacity-30 transition-opacity', hero.accent)}
+                        />
                       )}
-                    </div>
-
-                    {/* Hero silhouette placeholder */}
-                    <div className="w-full h-20 mb-3 flex items-center justify-center">
-                      <Shield
-                        className={cn('w-12 h-12 opacity-20 group-hover:opacity-30 transition-opacity', hero.accent)}
-                      />
                     </div>
 
                     <h3 className="font-semibold text-sm mb-0.5">{hero.name}</h3>
                     <p className={cn('text-xs font-medium mb-3', hero.accent)}>{hero.class}</p>
-
-                    {/* Mini stats */}
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                      {Object.entries(hero.stats).map(([key, val]) => (
-                        <div key={key} className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground capitalize">{key.slice(0, 3)}</span>
-                          <span className={cn('text-[10px] font-mono', hero.accent)}>{val}</span>
-                        </div>
-                      ))}
-                    </div>
                   </button>
                 ))}
               </div>
@@ -214,17 +239,9 @@ const Hero = () => {
             <div className="space-y-4">
               <div className={cn('card-surface-elevated p-6 rounded-xl border', selectedHero.border)}>
                 {/* Header */}
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h2 className="text-xl font-bold">{selectedHero.name}</h2>
-                    <p className={cn('text-sm font-medium', selectedHero.accent)}>{selectedHero.class}</p>
-                  </div>
-                  <span className={cn(
-                    'text-sm font-bold px-2.5 py-1 rounded border',
-                    tierColor[selectedHero.tier]
-                  )}>
-                    {selectedHero.tier}
-                  </span>
+                <div className="mb-2">
+                  <h2 className="text-xl font-bold">{selectedHero.name}</h2>
+                  <p className={cn('text-sm font-medium', selectedHero.accent)}>{selectedHero.class}</p>
                 </div>
 
                 <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
@@ -237,32 +254,6 @@ const Hero = () => {
                   {Object.entries(selectedHero.stats).map(([key, val]) => (
                     <StatBar key={key} label={key} value={val} accent={selectedHero.accent} />
                   ))}
-                </div>
-
-                {/* Win/Loss Record */}
-                <div className="flex gap-4 mb-6 p-3 rounded-lg bg-surface-2">
-                  <div className="flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-emerald-400" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Wins</p>
-                      <p className="text-sm font-mono font-semibold text-emerald-400">{selectedHero.wins}</p>
-                    </div>
-                  </div>
-                  <div className="w-px bg-border" />
-                  <div className="flex items-center gap-2">
-                    <Swords className="w-4 h-4 text-red-400" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Losses</p>
-                      <p className="text-sm font-mono font-semibold text-red-400">{selectedHero.losses}</p>
-                    </div>
-                  </div>
-                  <div className="w-px bg-border" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Win Rate</p>
-                    <p className={cn('text-sm font-mono font-semibold', selectedHero.accent)}>
-                      {Math.round((selectedHero.wins / (selectedHero.wins + selectedHero.losses)) * 100)}%
-                    </p>
-                  </div>
                 </div>
 
                 {/* Abilities */}
@@ -289,11 +280,7 @@ const Hero = () => {
         </div>
       </main>
 
-      {/* Partners Banner */}
-      <PartnersBanner className="mt-20 relative z-10" />
 
-      {/* Footer */}
-      <Footer className="relative z-10" />
     </div>
   );
 };

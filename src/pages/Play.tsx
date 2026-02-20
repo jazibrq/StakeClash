@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/shared';
 import { HostLobbyModal } from '@/components/modals/HostLobbyModal';
 import { MatchOverlay } from '@/components/modals/MatchOverlay';
-import { PartnersBanner } from '@/components/home/PartnersBanner';
-import { Footer } from '@/components/layout/Footer';
+
 import { Leaderboard } from '@/components/home/Leaderboard';
 import {
   Plus, Users, Filter, Search,
@@ -330,11 +329,7 @@ const Play = () => {
         </div>
       </main>
 
-      {/* Partners Banner */}
-      <PartnersBanner className="mt-[520px] relative z-10" />
 
-      {/* Footer */}
-      <Footer className="relative z-10" />
 
       {/* Host Lobby Modal */}
       <HostLobbyModal
