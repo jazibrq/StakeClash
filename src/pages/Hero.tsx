@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navigation } from '@/components/Navigation';
 import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
@@ -191,6 +192,7 @@ const StatBar = ({ label, value, accent }: { label: string; value: number; accen
 
 const Hero = () => {
   const [selectedHero, setSelectedHero] = useState(heroes[0]);
+  const navigate = useNavigate();
 
   return (
     <div className="h-screen overflow-hidden flex flex-col">
@@ -294,7 +296,14 @@ const Hero = () => {
                 </div>
 
                 {/* CTA */}
-                <Button className="w-full btn-cyan-gradient gap-2">
+                <Button
+                  className="w-full btn-cyan-gradient gap-2"
+                  onClick={() => {
+                    if (selectedHero.id === 1) {
+                      navigate('/clash');
+                    }
+                  }}
+                >
                   <Swords className="w-4 h-4" />
                   Select {selectedHero.name}
                 </Button>
