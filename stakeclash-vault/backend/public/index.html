@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StakeClash Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      background: #0e0e12;
+      color: #d4d4d4;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      color: #f0c040;
+      margin-bottom: 2rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Start Season button — top-right ── */
+    .start-btn {
+      position: fixed;
+      top: 1.2rem;
+      right: 1.5rem;
+      padding: 0.7rem 1.5rem;
+      font-size: 1rem;
+      font-weight: bold;
+      font-family: inherit;
+      background: #f0c040;
+      color: #111;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      z-index: 100;
+    }
+    .start-btn:hover  { background: #d4a820; }
+    .start-btn:active { background: #b88c10; }
+    .start-btn:disabled { background: #666; color: #333; cursor: not-allowed; }
+
+    /* ── Panels ── */
+    .panel {
+      background: #1a1a22;
+      border: 1px solid #2e2e3a;
+      border-radius: 8px;
+      padding: 1.2rem 1.5rem;
+      margin-bottom: 1.5rem;
+      max-width: 700px;
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      color: #8ab4f8;
+      margin-bottom: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .refresh-btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0.3rem 0.8rem;
+      background: #2e2e3a;
+      color: #d4d4d4;
+      border: 1px solid #444;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 0.7rem;
+    }
+    .refresh-btn:hover { background: #3a3a4a; }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #a8e6a8;
+    }
+
+    .log-output {
+      color: #aad4ff;
+    }
+
+    .empty { color: #666; font-style: italic; }
+  </style>
+</head>
+<body>
+
+  <h1>StakeClash Admin</h1>
+
+  <!-- Start Season button — fixed top-right -->
+  <button class="start-btn" id="startBtn" onclick="startSeason()">Start Season</button>
+
+  <!-- Pending deposits panel -->
+  <div class="panel">
+    <h2>Pending Deposits</h2>
+    <button class="refresh-btn" onclick="loadDeposits()">Refresh</button>
+    <pre id="deposits"><span class="empty">Click Refresh to load deposits.</span></pre>
+  </div>
+
+  <!-- Season log panel -->
+  <div class="panel">
+    <h2>Season Log</h2>
+    <pre id="log" class="log-output"><span class="empty">No activity yet.</span></pre>
+  </div>
+
+  <script>
+    const API = "";  // same origin — backend serves this file
+
+    function log(msg) {
+      const el = document.getElementById("log");
+      const ts = new Date().toLocaleTimeString();
+      el.textContent = `[${ts}] ${msg}\n` + el.textContent;
+    }
+
+    /**
+     * Calls GET /start-season.
+     * The backend will create a ScheduleCreateTransaction + ScheduleSignTransaction
+     * for every pending deposit. Hedera will auto-execute each refund at expiry
+     * (~5 minutes). No backend timers are involved.
+     */
+    async function startSeason() {
+      const btn = document.getElementById("startBtn");
+      btn.disabled = true;
+      btn.textContent = "Scheduling…";
+      log("Calling /start-season …");
+
+      try {
+        const res  = await fetch(`${API}/start-season`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          log(`ERROR ${res.status}: ${data.error ?? JSON.stringify(data)}`);
+          return;
+        }
+
+        if (data.scheduled === 0) {
+          log("No pending deposits — nothing was scheduled.");
+        } else {
+          log(`SUCCESS: ${data.scheduled} refund(s) scheduled via Hedera Schedule Service.`);
+          log(`Each refund will auto-execute in ~5 minutes. No backend timers.`);
+        }
+
+        if (data.errors && data.errors.length > 0) {
+          data.errors.forEach(e => log(`PARTIAL ERROR: ${e}`));
+        }
+      } catch (e) {
+        log(`FETCH ERROR: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Start Season";
+        loadDeposits();
+      }
+    }
+
+    async function loadDeposits() {
+      const el = document.getElementById("deposits");
+      try {
+        const res  = await fetch(`${API}/deposits`);
+        const data = await res.json();
+
+        if (data.count === 0) {
+          el.innerHTML = '<span class="empty">No pending deposits.</span>';
+        } else {
+          el.textContent =
+            `${data.count} pending deposit(s):\n\n` +
+            data.deposits
+              .map(d => `  ${d.key}\n    → ${d.hbar} HBAR to ${d.userId}`)
+              .join("\n\n");
+        }
+      } catch (e) {
+        el.textContent = `Error loading deposits: ${e.message}`;
+      }
+    }
+
+    // Load deposits on page open
+    loadDeposits();
+    // Auto-refresh every 10 s
+    setInterval(loadDeposits, 10_000);
+  </script>
+
+</body>
+</html>

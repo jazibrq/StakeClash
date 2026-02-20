@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import skillstackLogo from '@/assets/stakeclashlogo.png';
 import { useWalletContext } from '@/contexts/WalletContext';
+import { SeasonCountdown } from '@/components/SeasonCountdown';
 
 const navItems = [
   { label: 'Home', path: '/' },
@@ -93,6 +94,7 @@ export const Navigation = () => {
 
           {/* Right Section - Right */}
           <div className="flex-1 flex items-center justify-end gap-4">
+            <SeasonCountdown />
             {/* X (Twitter) Link */}
             <a
               href="https://x.com/StakeClashBC"
