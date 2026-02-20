@@ -22,32 +22,26 @@ const FORTRESS_CONFIG: Record<Resource, FortressConfig> = {
     levels: {
       1: {
         stats: [
-          { label: 'Production',  value: '+2 ore/hr' },
-          { label: 'Defense',     value: '10' },
-          { label: 'HP',          value: '100' },
+          { label: 'Production',    value: '+2 ore/hr' },
+          { label: 'Defense Boost', value: '10%' },
         ],
       },
       2: {
         stats: [
-          { label: 'Production',  value: '+5 ore/hr',  delta: '+3' },
-          { label: 'Defense',     value: '15',          delta: '+5' },
-          { label: 'HP',          value: '150',         delta: '+50' },
+          { label: 'Production',    value: '+5 ore/hr' },
+          { label: 'Defense Boost', value: '15%', delta: '+5%' },
         ],
         requires: [
-          { resource: 'ore',  label: 'Ore',  amount: 50 },
-          { resource: 'gold', label: 'Gold', amount: 20 },
+          { resource: 'ore', label: 'Ore', amount: 50 },
         ],
       },
       3: {
         stats: [
-          { label: 'Production',  value: '+10 ore/hr', delta: '+5' },
-          { label: 'Defense',     value: '25',          delta: '+10' },
-          { label: 'HP',          value: '250',         delta: '+100' },
+          { label: 'Production',    value: '+10 ore/hr' },
+          { label: 'Defense Boost', value: '25%', delta: '+10%' },
         ],
         requires: [
-          { resource: 'ore',     label: 'Ore',     amount: 150 },
-          { resource: 'gold',    label: 'Gold',    amount: 60  },
-          { resource: 'diamond', label: 'Diamond', amount: 10  },
+          { resource: 'ore', label: 'Ore', amount: 150 },
         ],
       },
     },
@@ -58,32 +52,26 @@ const FORTRESS_CONFIG: Record<Resource, FortressConfig> = {
     levels: {
       1: {
         stats: [
-          { label: 'Production',    value: '+1.5 gold/hr' },
-          { label: 'Attack Boost',  value: '5%' },
-          { label: 'Capacity',      value: '200 gold' },
+          { label: 'Production',   value: '+1.5 gold/hr' },
+          { label: 'Attack Boost', value: '5%' },
         ],
       },
       2: {
         stats: [
-          { label: 'Production',    value: '+3 gold/hr',   delta: '+1.5' },
-          { label: 'Attack Boost',  value: '12%',           delta: '+7%' },
-          { label: 'Capacity',      value: '350 gold',      delta: '+150' },
+          { label: 'Production',   value: '+3 gold/hr' },
+          { label: 'Attack Boost', value: '12%', delta: '+7%' },
         ],
         requires: [
-          { resource: 'ore',  label: 'Ore',  amount: 80 },
           { resource: 'gold', label: 'Gold', amount: 30 },
         ],
       },
       3: {
         stats: [
-          { label: 'Production',    value: '+6 gold/hr',  delta: '+3' },
-          { label: 'Attack Boost',  value: '20%',          delta: '+8%' },
-          { label: 'Capacity',      value: '600 gold',     delta: '+250' },
+          { label: 'Production',   value: '+6 gold/hr' },
+          { label: 'Attack Boost', value: '20%', delta: '+8%' },
         ],
         requires: [
-          { resource: 'ore',  label: 'Ore',  amount: 200 },
           { resource: 'gold', label: 'Gold', amount: 100 },
-          { resource: 'mana', label: 'Mana', amount: 20  },
         ],
       },
     },
@@ -95,32 +83,25 @@ const FORTRESS_CONFIG: Record<Resource, FortressConfig> = {
       1: {
         stats: [
           { label: 'Production',  value: '+0.5 diamond/hr' },
-          { label: 'Crit Chance', value: '5%' },
-          { label: 'Armor',       value: '8' },
+          { label: 'Speed Boost', value: '5%' },
         ],
       },
       2: {
         stats: [
-          { label: 'Production',  value: '+1.2 diamond/hr', delta: '+0.7' },
-          { label: 'Crit Chance', value: '12%',              delta: '+7%' },
-          { label: 'Armor',       value: '18',               delta: '+10' },
+          { label: 'Production',  value: '+1.2 diamond/hr' },
+          { label: 'Speed Boost', value: '10%', delta: '+5%' },
         ],
         requires: [
-          { resource: 'ore',     label: 'Ore',     amount: 100 },
-          { resource: 'gold',    label: 'Gold',    amount: 40  },
-          { resource: 'diamond', label: 'Diamond', amount: 5   },
+          { resource: 'diamond', label: 'Diamond', amount: 5 },
         ],
       },
       3: {
         stats: [
-          { label: 'Production',  value: '+2.5 diamond/hr', delta: '+1.3' },
-          { label: 'Crit Chance', value: '22%',              delta: '+10%' },
-          { label: 'Armor',       value: '35',               delta: '+17' },
+          { label: 'Production',  value: '+2.5 diamond/hr' },
+          { label: 'Speed Boost', value: '18%', delta: '+8%' },
         ],
         requires: [
-          { resource: 'ore',     label: 'Ore',     amount: 300 },
-          { resource: 'gold',    label: 'Gold',    amount: 120 },
-          { resource: 'diamond', label: 'Diamond', amount: 25  },
+          { resource: 'diamond', label: 'Diamond', amount: 25 },
         ],
       },
     },
@@ -131,34 +112,26 @@ const FORTRESS_CONFIG: Record<Resource, FortressConfig> = {
     levels: {
       1: {
         stats: [
-          { label: 'Production',  value: '+0.8 mana/hr' },
-          { label: 'Spell Power', value: '10%' },
-          { label: 'Regen',       value: '2/min' },
+          { label: 'Production',          value: '+0.8 mana/hr' },
+          { label: 'Cooldown Reduction',  value: '5%' },
         ],
       },
       2: {
         stats: [
-          { label: 'Production',  value: '+2 mana/hr',  delta: '+1.2' },
-          { label: 'Spell Power', value: '22%',          delta: '+12%' },
-          { label: 'Regen',       value: '5/min',        delta: '+3' },
+          { label: 'Production',          value: '+2 mana/hr' },
+          { label: 'Cooldown Reduction',  value: '12%', delta: '+7%' },
         ],
         requires: [
-          { resource: 'ore',     label: 'Ore',     amount: 60 },
-          { resource: 'gold',    label: 'Gold',    amount: 25 },
-          { resource: 'diamond', label: 'Diamond', amount: 3  },
+          { resource: 'mana', label: 'Mana', amount: 10 },
         ],
       },
       3: {
         stats: [
-          { label: 'Production',  value: '+4 mana/hr',  delta: '+2' },
-          { label: 'Spell Power', value: '38%',          delta: '+16%' },
-          { label: 'Regen',       value: '10/min',       delta: '+5' },
+          { label: 'Production',          value: '+4 mana/hr' },
+          { label: 'Cooldown Reduction',  value: '20%', delta: '+8%' },
         ],
         requires: [
-          { resource: 'ore',     label: 'Ore',     amount: 180 },
-          { resource: 'gold',    label: 'Gold',    amount: 80  },
-          { resource: 'diamond', label: 'Diamond', amount: 20  },
-          { resource: 'mana',    label: 'Mana',    amount: 15  },
+          { resource: 'mana', label: 'Mana', amount: 30 },
         ],
       },
     },
@@ -200,13 +173,13 @@ const Tooltip = ({
         <img
           src={`/images/resources/${resource}logo.png`}
           alt={resource}
-          style={{ width: 20, height: 20, imageRendering: 'pixelated', flexShrink: 0 }}
+          style={{ width: 22, height: 22, imageRendering: 'pixelated', flexShrink: 0 }}
         />
-        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '13px', color: cfg.color }}>
+        <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '15px', color: cfg.color }}>
           {cfg.name}
         </span>
         <span style={{
-          marginLeft: 'auto', fontFamily: 'monospace', fontSize: '11px',
+          marginLeft: 'auto', fontFamily: 'monospace', fontSize: '13px',
           color: 'rgba(255,255,255,0.4)', letterSpacing: '1px',
         }}>
           LV {level}
@@ -216,7 +189,7 @@ const Tooltip = ({
       {/* Current stats */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         {spec.stats.map(s => (
-          <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+          <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
             <span style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</span>
             <span style={{ fontFamily: 'monospace', color: '#fff' }}>{s.value}</span>
           </div>
@@ -227,12 +200,12 @@ const Tooltip = ({
       {next && (
         <>
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
             LEVEL {nextL} UPGRADES
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {next.stats.filter(s => s.delta).map(s => (
-              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'rgba(255,255,255,0.45)' }}>{s.label}</span>
                 <span style={{ fontFamily: 'monospace', color: '#4ade80' }}>+{s.delta?.replace('+', '')}</span>
               </div>
@@ -241,7 +214,7 @@ const Tooltip = ({
           {/* Requirements */}
           {next.requires && (
             <>
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
                 REQUIRES
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -249,12 +222,12 @@ const Tooltip = ({
                   const have  = resources[r.resource];
                   const met   = have >= r.amount;
                   return (
-                    <div key={r.resource} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px' }}>
+                    <div key={r.resource} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <img
                           src={`/images/resources/${r.resource}logo.png`}
                           alt={r.label}
-                          style={{ width: 16, height: 16, imageRendering: 'pixelated', flexShrink: 0 }}
+                          style={{ width: 18, height: 18, imageRendering: 'pixelated', flexShrink: 0 }}
                         />
                         <span style={{ color: 'rgba(255,255,255,0.45)' }}>{r.label}</span>
                       </div>
@@ -271,7 +244,7 @@ const Tooltip = ({
       )}
 
       {level === 3 && (
-        <div style={{ fontSize: '11px', color: cfg.color, fontFamily: 'monospace', marginTop: 'auto' }}>
+        <div style={{ fontSize: '13px', color: cfg.color, fontFamily: 'monospace', marginTop: 'auto' }}>
           MAX LEVEL
         </div>
       )}

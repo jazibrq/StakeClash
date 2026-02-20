@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { VaultDepositModal } from '@/components/modals/VaultDepositModal';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
-import { Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Resource = 'ore' | 'gold' | 'diamond' | 'mana';
@@ -27,7 +27,6 @@ const Fortress = () => {
   const player = usePlayerData(wallet?.address ?? null);
 
   const [modalType, setModalType]   = useState<'deposit' | 'withdraw' | null>(null);
-  const [activeTab, setActiveTab]   = useState<'matches' | 'vault'>('matches');
   const [resources, setResources]   = useState<Resources>({ ore: 0, gold: 0, diamond: 0, mana: 0 });
 
   /* Accumulate resources over time (replaced by real wallet data when available) */
@@ -145,72 +144,33 @@ const Fortress = () => {
             </div>
           </div>
 
-          {/* Activity tabs */}
+          {/* Match history */}
           <div className="card-surface rounded-xl p-4 flex-1 min-h-0 flex flex-col">
-            <div className="flex gap-4 mb-3 border-b border-border pb-2 flex-shrink-0">
-              {(['matches', 'vault'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    'text-xs font-medium uppercase tracking-wide transition-colors',
-                    activeTab === tab ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {tab === 'matches' ? 'Matches' : 'Vault'}
-                </button>
-              ))}
-            </div>
-
-            {/* Scrollable content area */}
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-3 border-b border-border pb-2 flex-shrink-0">
+              Matches
+            </p>
             <div className="flex-1 min-h-0 overflow-y-auto fortress-sidebar">
-              {activeTab === 'matches' && (
-                <div className="space-y-2">
-                  {player.matchHistory.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">No matches yet</p>
-                  )}
-                  {player.matchHistory.map((m) => (
-                    <div key={m.id} className="flex items-center justify-between py-1 border-t border-border first:border-0">
-                      <div>
-                        <p className="text-xs font-mono">{m.opponent}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(m.date).toLocaleDateString()} · {m.size}p</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
-                          {m.result}
-                        </p>
-                        <p className={cn('text-xs font-mono', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
-                          {m.awards}
-                        </p>
-                      </div>
+              <div className="space-y-2">
+                {player.matchHistory.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">No matches yet</p>
+                )}
+                {player.matchHistory.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between py-1 border-t border-border first:border-0">
+                    <div>
+                      <p className="text-xs font-mono">{m.opponent}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(m.date).toLocaleDateString()} · {m.size}p</p>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {activeTab === 'vault' && (
-                <div className="space-y-2">
-                  {player.vaultActivity.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">No vault activity yet</p>
-                  )}
-                  {player.vaultActivity.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between py-1 border-t border-border first:border-0">
-                      <div className="flex items-center gap-1.5">
-                        {a.type === 'Deposit'
-                          ? <ArrowUpRight className="w-3 h-3 text-primary" />
-                          : <ArrowDownRight className="w-3 h-3 text-muted-foreground" />}
-                        <div>
-                          <p className="text-xs font-medium">{a.type} {a.token}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{new Date(a.date).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      <p className={cn('text-xs font-mono', a.type === 'Deposit' ? 'text-primary' : 'text-muted-foreground')}>
-                        {a.type === 'Deposit' ? '+' : '-'}{a.amount.toFixed(2)} {a.token}
+                    <div className="text-right">
+                      <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
+                        {m.result}
+                      </p>
+                      <p className={cn('text-xs font-mono', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
+                        {m.awards}
                       </p>
                     </div>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
