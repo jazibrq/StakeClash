@@ -289,6 +289,76 @@ const minotaurBossAnimKey = (state: EState): 'walk' | 'attack' | 'death' => {
   return 'walk';
 };
 
+/* ─── Victory rewards animation ─────────────────────────────── */
+
+const VICTORY_REWARDS = [
+  { label: 'Ore',     resource: 'ore',     color: '#a0a0a0', amount: 24 },
+  { label: 'Gold',    resource: 'gold',    color: '#f59e0b', amount: 12 },
+  { label: 'Diamond', resource: 'diamond', color: '#38bdf8', amount: 4  },
+  { label: 'Mana',    resource: 'mana',    color: '#a855f7', amount: 8  },
+];
+
+const VictoryRewards: React.FC = () => {
+  const [counts,  setCounts]  = useState([0, 0, 0, 0]);
+  const [visible, setVisible] = useState([false, false, false, false]);
+
+  useEffect(() => {
+    VICTORY_REWARDS.forEach((r, i) => {
+      setTimeout(() => {
+        setVisible(v => { const n = [...v]; n[i] = true; return n; });
+        const start = performance.now();
+        const duration = 1100;
+        const tick = (now: number) => {
+          const t = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - t, 3);
+          setCounts(c => { const n = [...c]; n[i] = Math.round(eased * r.amount); return n; });
+          if (t < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }, 350 + i * 200);
+    });
+  }, []);
+
+  return (
+    <div style={{
+      backgroundImage: 'url(/scrollbg.png)',
+      backgroundSize: '100% 100%',
+      backgroundRepeat: 'no-repeat',
+      padding: '28px 36px',
+      display: 'flex', flexDirection: 'column', gap: '12px',
+      minWidth: 220,
+    }}>
+      {VICTORY_REWARDS.map((r, i) => (
+        <div key={r.resource} style={{
+          display: 'flex', alignItems: 'center', gap: '14px',
+          opacity: visible[i] ? 1 : 0,
+          transform: visible[i] ? 'scale(1) translateY(0)' : 'scale(0.5) translateY(8px)',
+          transition: 'opacity 0.3s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+        }}>
+          <img
+            src={`/images/resources/${r.resource}logo.png`}
+            alt={r.label}
+            style={{ width: 30, height: 30, imageRendering: 'pixelated', flexShrink: 0 }}
+          />
+          <span style={{
+            fontFamily: 'monospace', fontSize: '13px',
+            color: 'rgba(255,255,255,0.45)', width: 58,
+          }}>
+            {r.label}
+          </span>
+          <span style={{
+            fontFamily: 'monospace', fontSize: '20px', fontWeight: 800,
+            color: r.color, minWidth: 48,
+            textShadow: `0 0 18px ${r.color}88`,
+          }}>
+            +{counts[i]}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 /* ─── component ─────────────────────────────────────────────── */
 
 interface Props { onReturn: () => void; autoStart?: boolean; }
@@ -1983,17 +2053,19 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
             color: result === 'victory' ? '#00e5ff' : '#ef4444',
             textShadow: `0 0 50px ${result === 'victory' ? 'rgba(0,229,255,0.55)' : 'rgba(239,68,68,0.55)'}`,
           }}>
-            {result === 'victory' ? 'RAID COMPLETE' : 'RAID FAILED'}
+            {result === 'victory' ? 'CLASH COMPLETE' : 'CLASH FAILED'}
           </div>
 
-          <div style={{
-            color: 'rgba(255,255,255,0.45)',
-            fontSize: '13px', fontFamily: 'monospace',
-          }}>
-            {result === 'victory'
-              ? 'You survived the raid. Resources secured.'
-              : 'Your forces were overwhelmed.'}
-          </div>
+          {result === 'victory' ? (
+            <VictoryRewards />
+          ) : (
+            <div style={{
+              color: 'rgba(255,255,255,0.45)',
+              fontSize: '13px', fontFamily: 'monospace',
+            }}>
+              Your forces were overwhelmed.
+            </div>
+          )}
 
           <button
             onClick={onReturn}

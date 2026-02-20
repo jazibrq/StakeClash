@@ -86,7 +86,10 @@ const Learn = () => (
     <Navigation />
 
     <main className="relative z-10 pt-24 pb-0">
-      <div className="max-w-3xl mx-auto px-6">
+      <div
+        className="max-w-3xl mx-auto px-8 py-10 rounded-2xl"
+        style={{ background: 'rgba(5, 5, 15, 0.82)', backdropFilter: 'blur(10px)' }}
+      >
 
         {/* ── Hero ── */}
         <div className="mb-16">
