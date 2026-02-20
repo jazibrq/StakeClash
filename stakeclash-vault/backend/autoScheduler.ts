@@ -7,8 +7,6 @@ import {
   PrivateKey,
   Hbar,
   TransferTransaction,
-  ScheduleCreateTransaction,
-  Timestamp,
 } from "@hashgraph/sdk";
 
 // ── Env guards ─────────────────────────────────────────────────────────────
@@ -24,7 +22,7 @@ console.log("Loaded ENV:", {
 // ── Config ─────────────────────────────────────────────────────────────────
 const NETWORK          = process.env.HEDERA_NETWORK || "testnet";
 const OPERATOR_ID      = AccountId.fromString(process.env.OPERATOR_ID);
-const OPERATOR_KEY     = PrivateKey.fromString(process.env.OPERATOR_KEY);
+const OPERATOR_KEY     = PrivateKey.fromStringECDSA(process.env.OPERATOR_KEY);
 const TREASURY_ID      = AccountId.fromString(process.env.TREASURY_ACCOUNT_ID);
 const POLL_INTERVAL_MS = 5_000;
 const REFUND_DELAY_S   = 60;
@@ -36,6 +34,9 @@ const MIRROR_BASE = NETWORK === "mainnet"
 // ── Hedera client ──────────────────────────────────────────────────────────
 const client = NETWORK === "mainnet" ? Client.forMainnet() : Client.forTestnet();
 client.setOperator(OPERATOR_ID, OPERATOR_KEY);
+
+// ── Startup timestamp — only process transactions from this point forward ──
+const START_TIMESTAMP = `${Math.floor(Date.now() / 1000)}.000000000`;
 
 // ── Processed tx tracker ───────────────────────────────────────────────────
 const processed = new Set<string>();
@@ -55,28 +56,30 @@ async function getEvmAddress(accountId: string): Promise<string> {
   return data.evm_address ?? accountId;
 }
 
-async function scheduleRefund(depositorId: AccountId, tinybars: number): Promise<string> {
-  const inner = new TransferTransaction()
-    .addHbarTransfer(TREASURY_ID,  Hbar.fromTinybars(-tinybars))
-    .addHbarTransfer(depositorId,  Hbar.fromTinybars(tinybars));
+function scheduleRefund(depositorId: AccountId, tinybars: number): string {
+  const refundId = `refund-${Date.now()}`;
 
-  const expiry = Timestamp.fromDate(new Date(Date.now() + REFUND_DELAY_S * 1000));
+  setTimeout(async () => {
+    try {
+      const res = await new TransferTransaction()
+        .addHbarTransfer(TREASURY_ID, Hbar.fromTinybars(-tinybars))
+        .addHbarTransfer(depositorId,  Hbar.fromTinybars(tinybars))
+        .execute(client);
+      const receipt = await res.getReceipt(client);
+      console.log(`Refund sent — txId: ${res.transactionId}, status: ${receipt.status}`);
+    } catch (err) {
+      console.error(`Refund error: ${(err as Error).message}`);
+    }
+  }, REFUND_DELAY_S * 1000);
 
-  const response = await new ScheduleCreateTransaction()
-    .setScheduledTransaction(inner)
-    .setWaitForExpiry(true)
-    .setExpirationTime(expiry)
-    .execute(client);
-
-  const receipt = await response.getReceipt(client);
-  return receipt.scheduleId!.toString();
+  return refundId;
 }
 
 // ── Poll ───────────────────────────────────────────────────────────────────
 async function poll(): Promise<void> {
   try {
     const url = `${MIRROR_BASE}/api/v1/transactions`
-      + `?account.id=${TREASURY_ID}&transactiontype=CRYPTOTRANSFER&limit=10&order=desc`;
+      + `?account.id=${TREASURY_ID}&order=asc&limit=25&timestamp=gte:${START_TIMESTAMP}`;
 
     const res = await fetch(url);
     const { transactions = [] } = await res.json() as { transactions?: MirrorTx[] };
@@ -104,10 +107,12 @@ async function poll(): Promise<void> {
       const evmAddress  = await getEvmAddress(depositorTransfer.account);
       const hbarAmount  = (treasuryIn.amount / 1e8).toFixed(4);
 
-      const scheduleId = await scheduleRefund(depositorId, treasuryIn.amount);
+      console.log(`Deposit detected — account: ${depositorTransfer.account}, tinybars: ${treasuryIn.amount}`);
+
+      const refundId = scheduleRefund(depositorId, treasuryIn.amount);
 
       console.log(`Scheduled refund for ${hbarAmount} HBAR to ${evmAddress}`);
-      console.log(`scheduleId: ${scheduleId}`);
+      console.log(`refundId: ${refundId}`);
     }
   } catch (err) {
     console.error("Poll error:", (err as Error).message);
