@@ -234,7 +234,7 @@ const Hero = () => {
 
                     {/* Hero sprite / placeholder */}
                     <div
-                      className="flex-1 min-h-0 flex items-end justify-center overflow-hidden"
+                      className="flex-1 min-h-0 flex items-end justify-center"
                       style={{ transform: `translate(${hero.spriteX ?? 0}px, ${hero.spriteY ?? 0}px)` }}
                     >
                       {hero.idleSprite ? (
