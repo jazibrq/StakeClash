@@ -189,13 +189,13 @@ const Hero = () => {
 
             {/* Hero Grid */}
             <div className="lg:col-span-2">
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {heroes.map((hero) => (
                   <button
                     key={hero.id}
                     onClick={() => setSelectedHero(hero)}
                     className={cn(
-                      'relative text-left rounded-xl border p-5 transition-all duration-200 group',
+                      'relative text-left rounded-xl border p-5 transition-all duration-200 group w-full',
                       'bg-gradient-to-br',
                       hero.color,
                       selectedHero.id === hero.id
@@ -206,20 +206,19 @@ const Hero = () => {
                     {/* Selected ring */}
                     {selectedHero.id === hero.id && (
                       <div
-                        className="absolute inset-0 rounded-xl ring-1 ring-inset pointer-events-none"
-                        style={{ ringColor: 'hsl(185 100% 50% / 0.3)' }}
+                        className="absolute inset-0 rounded-xl ring-1 ring-inset pointer-events-none ring-cyan-400/30"
                       />
                     )}
 
                     {/* Hero sprite / placeholder */}
-                    <div className="w-full h-44 mb-3 flex items-center justify-center">
+                    <div className="w-full h-56 mb-3 flex items-center justify-center">
                       {hero.idleSprite ? (
                         <AnimatedSprite
                           src={hero.idleSprite.src}
                           frames={hero.idleSprite.frames}
                           frameWidth={hero.idleSprite.frameWidth}
                           frameHeight={hero.idleSprite.frameHeight}
-                          size={170}
+                          size={220}
                         />
                       ) : (
                         <Shield
