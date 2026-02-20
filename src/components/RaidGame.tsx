@@ -27,7 +27,7 @@ interface Player extends Vec2 {
 interface Enemy extends Vec2 {
   id: number;
   hp: number;
-  type:              'knight' | 'mage' | 'skeleton';
+  type:              'knight' | 'mage' | 'skeleton' | 'kitsune';
   state:             EState;
   frameIndex:        number;
   animTimer:         number;
@@ -45,6 +45,16 @@ interface Projectile {
   done:   boolean;
 }
 
+interface KitsuneBeam {
+  id:          number;
+  ox:          number; oy: number;   // origin position
+  dx:          number; dy: number;   // normalised direction
+  life:        number;               // seconds remaining
+  length:      number;               // current beam extent (px) — grows over time
+  maxLength:   number;               // full length to screen edge
+  damageDealt: boolean;
+}
+
 interface Particle extends Vec2 {
   id: number; vx: number; vy: number;
   life: number; r: number; color: string;
@@ -55,6 +65,7 @@ interface GS {
   enemies:          Enemy[];
   particles:        Particle[];
   enemyProjectiles: Projectile[];
+  kitsuneBeams:     KitsuneBeam[];
   keys:             Record<string, boolean>;
   timer:            number;
   lastSpawn:        number;
@@ -75,6 +86,7 @@ type PlayerSprites   = Record<PState, HTMLImageElement | null>;
 type KnightSprites   = Record<'running' | 'attacking' | 'dead', HTMLImageElement | null>;
 type MageSprites     = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
 type SkeletonSprites = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
+type KitsuneSprites  = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
 
 /* ─── constants ─────────────────────────────────────────────── */
 
@@ -107,6 +119,17 @@ const SKELETON_MOVE_SPEED      = 2.8;   // multiplier on base speed
 const SKELETON_ATTACK_RANGE    = 55;
 const SKELETON_ATTACK_COOLDOWN = 900;   // ms
 const SKELETON_CONTACT_DAMAGE  = 15;
+
+/* ── kitsune constants ── */
+const KITSUNE_RENDER_SIZE     = 128;
+const KITSUNE_MOVE_SPEED      = 1.6;   // multiplier on base speed (slower — ranged)
+const KITSUNE_ATTACK_RANGE    = 320;   // px — fires beam from distance
+const KITSUNE_ATTACK_COOLDOWN = 1600;  // ms
+const KITSUNE_BEAM_DAMAGE      = 14;
+const KITSUNE_BEAM_WIDTH       = 6;     // px — collision half-width (skinny)
+const KITSUNE_BEAM_DURATION    = 2.0;   // seconds beam stays active (lingers)
+const KITSUNE_BEAM_SPEED       = 1400;  // px/s — fast extension to screen edge
+const KITSUNE_BEAM_SPAWN_FRAME = 6;     // 0-indexed frame that fires beam
 
 /* ── knight constants ── */
 const KNIGHT_HIT_POINTS = 2;   // hits required to kill a knight
@@ -157,6 +180,13 @@ const SKELETON_ANIM_CONFIG: Record<'run' | 'attack' | 'death', { frames: number;
 };
 const SKELETON_ATTACK_DAMAGE_FRAME = 3; // 0-indexed
 
+/* ── kitsune anim config (horizontal sprite sheets) ── */
+const KITSUNE_ANIM_CONFIG: Record<'run' | 'attack' | 'death', { frames: number; frameDuration: number; loop: boolean }> = {
+  run:    { frames: 8,  frameDuration: 90,  loop: true  },
+  attack: { frames: 10, frameDuration: 90,  loop: false },
+  death:  { frames: 10, frameDuration: 100, loop: false },
+};
+
 /* ── sprite sheet paths ── */
 const PLAYER_SPRITE_FILE: Record<PState, string> = {
   idle:      'Idle',
@@ -177,6 +207,11 @@ const MAGE_SPRITE_FILE: Record<'run' | 'attack' | 'death', string> = {
 const SKELETON_SPRITE_FILE: Record<'run' | 'attack' | 'death', string> = {
   run:    'Run',
   attack: 'Attack',
+  death:  'Dead',
+};
+const KITSUNE_SPRITE_FILE: Record<'run' | 'attack' | 'death', string> = {
+  run:    'Run',
+  attack: 'Attack_2',
   death:  'Dead',
 };
 
@@ -209,6 +244,7 @@ const mageAnimKey = (state: EState): 'run' | 'attack' | 'death' => {
   return 'run';
 };
 const skeletonAnimKey = mageAnimKey; // same mapping
+const kitsuneAnimKey  = mageAnimKey; // same mapping
 
 /* ─── component ─────────────────────────────────────────────── */
 
@@ -223,6 +259,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
   const knightSpritesRef = useRef<KnightSprites>({ running: null, attacking: null, dead: null });
   const mageSpritesRef     = useRef<MageSprites>({ run: null, attack: null, death: null });
   const skeletonSpritesRef = useRef<SkeletonSprites>({ run: null, attack: null, death: null });
+  const kitsuneSpritesRef  = useRef<KitsuneSprites>({ run: null, attack: null, death: null });
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bladestormVideoRef = useRef<HTMLVideoElement | null>(null);
   const bladestormChargeRef = useRef(0);   // 0 → BLADESTORM_CHARGE_MAX
@@ -257,6 +294,12 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       img.onload  = () => { skeletonSpritesRef.current[state] = img; };
       img.onerror = () => { skeletonSpritesRef.current[state] = null; };
     });
+    (Object.keys(KITSUNE_SPRITE_FILE) as Array<keyof typeof KITSUNE_SPRITE_FILE>).forEach(state => {
+      const img = new Image();
+      img.src = `/enemies/Kitsune/${KITSUNE_SPRITE_FILE[state]}.png`;
+      img.onload  = () => { kitsuneSpritesRef.current[state] = img; };
+      img.onerror = () => { kitsuneSpritesRef.current[state] = null; };
+    });
     const bg = new Image();
     bg.src = '/images/finalbattlebackground.png';
     bg.onload  = () => { bgImageRef.current = bg; };
@@ -282,7 +325,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       shieldActive: false, shieldTimer: 0, shieldCooldown: 0,
       dashActive: false, dashTimer: 0, dashCooldown: 0,
     },
-    enemies: [], particles: [], enemyProjectiles: [],
+    enemies: [], particles: [], enemyProjectiles: [], kitsuneBeams: [],
     keys: {}, timer: GAME_DURATION,
     lastSpawn: 0,
     running: true, uid: 0,
@@ -366,7 +409,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       else                 { x = pad;    y = pad + Math.random() * (H - pad * 2); }
 
       const roll = Math.random();
-      const enemyType: 'knight' | 'mage' | 'skeleton' = roll < 0.30 ? 'skeleton' : roll < 0.60 ? 'mage' : 'knight';
+      const enemyType: 'knight' | 'mage' | 'skeleton' | 'kitsune' = roll < 0.25 ? 'skeleton' : roll < 0.50 ? 'mage' : roll < 0.75 ? 'kitsune' : 'knight';
       gs.enemies.push({
         id: gs.uid++, x, y,
         hp: enemyType === 'knight' ? KNIGHT_HIT_POINTS : ENEMY_MAX_HP,
@@ -585,6 +628,47 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       }
     };
 
+    const drawKitsune = (e: Enemy) => {
+      const key  = kitsuneAnimKey(e.state);
+      const kcfg = KITSUNE_ANIM_CONFIG[key];
+      const img  = kitsuneSpritesRef.current[key];
+      const half = KITSUNE_RENDER_SIZE / 2;
+
+      if (img && img.complete && img.naturalWidth > 0) {
+        /* horizontal slicing: frames are side-by-side in a single row */
+        const frameW = img.width / kcfg.frames;
+        const frameH = img.height;
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        if (e.facing === -1) ctx.scale(-1, 1);
+        ctx.drawImage(
+          img,
+          e.frameIndex * frameW, 0, frameW, frameH,
+          -half, -half, KITSUNE_RENDER_SIZE, KITSUNE_RENDER_SIZE,
+        );
+        ctx.restore();
+      } else {
+        /* fallback: orange circle */
+        ctx.shadowColor = '#ff6f00';
+        ctx.shadowBlur  = 8;
+        ctx.fillStyle   = 'rgba(255,111,0,0.7)';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, ENEMY_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      if (e.state !== 'dead' && e.state !== 'dying') {
+        const hf = e.hp / ENEMY_MAX_HP;
+        const bw = KITSUNE_RENDER_SIZE * 0.5;
+        const hpY = e.y - KITSUNE_RENDER_SIZE * 0.22;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(e.x - bw / 2, hpY, bw, 3);
+        ctx.fillStyle = hf > 0.5 ? '#4caf50' : hf > 0.25 ? '#ff9800' : '#f44336';
+        ctx.fillRect(e.x - bw / 2, hpY, bw * hf, 3);
+      }
+    };
+
     const drawProjectiles = (projs: Projectile[]) => {
       for (const proj of projs) {
         ctx.save();
@@ -594,6 +678,52 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         ctx.beginPath();
         ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
+      }
+    };
+
+    const drawKitsuneBeams = (beams: KitsuneBeam[]) => {
+      for (const beam of beams) {
+        const alpha = Math.min(1, beam.life / KITSUNE_BEAM_DURATION * 1.5); // fade out
+        const endX = beam.ox + beam.dx * beam.length;
+        const endY = beam.oy + beam.dy * beam.length;
+
+        ctx.save();
+
+        /* outer glow */
+        ctx.globalAlpha = alpha * 0.25;
+        ctx.strokeStyle = '#1565c0';
+        ctx.shadowColor = '#1565c0';
+        ctx.shadowBlur  = 28;
+        ctx.lineWidth   = KITSUNE_BEAM_WIDTH * 3;
+        ctx.lineCap     = 'round';
+        ctx.beginPath();
+        ctx.moveTo(beam.ox, beam.oy);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        /* mid glow */
+        ctx.globalAlpha = alpha * 0.55;
+        ctx.strokeStyle = '#42a5f5';
+        ctx.shadowColor = '#42a5f5';
+        ctx.shadowBlur  = 14;
+        ctx.lineWidth   = KITSUNE_BEAM_WIDTH * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(beam.ox, beam.oy);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        /* bright core */
+        ctx.globalAlpha = alpha * 0.9;
+        ctx.strokeStyle = '#e3f2fd';
+        ctx.shadowColor = '#90caf9';
+        ctx.shadowBlur  = 8;
+        ctx.lineWidth   = KITSUNE_BEAM_WIDTH * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(beam.ox, beam.oy);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
         ctx.restore();
       }
     };
@@ -872,6 +1002,23 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
               e.animTimer         = 0;
               e.projectileSpawned = false;
             }
+          } else if (e.type === 'kitsune') {
+            /* ── kitsune state machine (ranged beam) ── */
+            if (e.attackCooldown > 0) e.attackCooldown -= dtMs;
+
+            // always move toward player (free movement like mage)
+            if (e.state !== 'attacking') {
+              e.x += (dx / len) * speed * KITSUNE_MOVE_SPEED * dt;
+              e.y += (dy / len) * speed * KITSUNE_MOVE_SPEED * dt;
+            }
+
+            // can attack when cooldown ready
+            if (e.state !== 'attacking' && e.attackCooldown <= 0) {
+              e.state       = 'attacking';
+              e.frameIndex  = 0;
+              e.animTimer   = 0;
+              e.damageDealt = false;  // reused as "beam spawned" flag
+            }
           } else {
             /* ── knight state machine (unchanged) ── */
             const inContact = len < CONTACT_RADIUS + 10;
@@ -994,6 +1141,54 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
               }
             }
           }
+        } else if (e.type === 'kitsune') {
+          /* ── kitsune animation (horizontal slicing) ── */
+          const kkey = kitsuneAnimKey(e.state);
+          const kcfg2 = KITSUNE_ANIM_CONFIG[kkey];
+          e.animTimer += dtMs;
+
+          while (e.animTimer >= kcfg2.frameDuration) {
+            e.animTimer -= kcfg2.frameDuration;
+
+            // spawn beam on designated frame
+            if (e.state === 'attacking' && e.frameIndex === KITSUNE_BEAM_SPAWN_FRAME && !e.damageDealt) {
+              e.damageDealt = true;
+              // direction toward player at moment of firing
+              const bdx = p.x - e.x;
+              const bdy = p.y - e.y;
+              const blen = Math.sqrt(bdx * bdx + bdy * bdy) || 1;
+              gs.kitsuneBeams.push({
+                id: gs.uid++,
+                ox: e.x, oy: e.y,
+                dx: bdx / blen, dy: bdy / blen,
+                life: KITSUNE_BEAM_DURATION,
+                length: 0,
+                maxLength: Math.sqrt(W * W + H * H),
+                damageDealt: false,
+              });
+            }
+
+            e.frameIndex++;
+            if (e.frameIndex >= kcfg2.frames) {
+              if (kcfg2.loop) {
+                e.frameIndex = 0;
+              } else {
+                e.frameIndex = kcfg2.frames - 1;
+                if (e.state === 'attacking') {
+                  // hold last frame until all beams from this kitsune are gone
+                  const hasBeam = gs.kitsuneBeams.some(b => b.life > 0);
+                  if (!hasBeam) {
+                    e.state          = 'running';
+                    e.frameIndex     = 0;
+                    e.animTimer      = 0;
+                    e.attackCooldown = KITSUNE_ATTACK_COOLDOWN;
+                  }
+                } else if (e.state === 'dying') {
+                  e.state = 'dead';
+                }
+              }
+            }
+          }
         } else {
           /* ── knight animation (unchanged) ── */
           const kstate = (e.state === 'dying' ? 'dead' : e.state) as 'running' | 'attacking' | 'dead';
@@ -1038,6 +1233,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         if (e.state !== 'dead') return true;
         if (e.type === 'skeleton') return false; // dying → dead transition means fully done
         if (e.type === 'mage') return false;      // same: dead = animation finished
+        if (e.type === 'kitsune') return false;    // same: dead = animation finished
         // knight: dead state plays anim then holds last frame → remove at last frame
         return e.frameIndex < KNIGHT_ANIM_CONFIG.dead.frames - 1;
       });
@@ -1066,6 +1262,32 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         }
       }
       gs.enemyProjectiles = gs.enemyProjectiles.filter(proj => !proj.done);
+
+      /* ── update kitsune beams ── */
+      for (const beam of gs.kitsuneBeams) {
+        beam.life -= dt;
+        // extend beam gradually
+        beam.length = Math.min(beam.maxLength, beam.length + KITSUNE_BEAM_SPEED * dt);
+
+        /* collision: point-to-ray segment distance (only up to current length) */
+        if (!beam.damageDealt && p.state !== 'dead' && !p.shieldActive) {
+          const apx = p.x - beam.ox;
+          const apy = p.y - beam.oy;
+          const t   = apx * beam.dx + apy * beam.dy; // dot along ray
+          if (t > 0 && t <= beam.length) { // player is within current beam extent
+            const perpX = beam.ox + beam.dx * t - p.x;
+            const perpY = beam.oy + beam.dy * t - p.y;
+            const perpDist = Math.sqrt(perpX * perpX + perpY * perpY);
+            if (perpDist < KITSUNE_BEAM_WIDTH + PLAYER_RADIUS) {
+              beam.damageDealt = true;
+              burst(gs, p.x, p.y, '#42a5f5', 5);
+              p.hp -= KITSUNE_BEAM_DAMAGE;
+              if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
+            }
+          }
+        }
+      }
+      gs.kitsuneBeams = gs.kitsuneBeams.filter(b => b.life > 0);
 
       /* ── spawn ── */
       const rate = Math.max(SPAWN_RATE_MIN, SPAWN_RATE_START - (GAME_DURATION - gs.timer) * 17);
@@ -1100,9 +1322,11 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       for (const e of gs.enemies) {
         if (e.type === 'skeleton') drawSkeleton(e);
         else if (e.type === 'mage') drawMage(e);
+        else if (e.type === 'kitsune') drawKitsune(e);
         else drawKnight(e);
       }
       drawProjectiles(gs.enemyProjectiles);
+      drawKitsuneBeams(gs.kitsuneBeams);
 
       /* ── phase dash trail (flickering ghosts from origin → destination) ── */
       if (afterimageRef.current.length > 0) {
