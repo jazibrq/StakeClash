@@ -292,10 +292,10 @@ const minotaurBossAnimKey = (state: EState): 'walk' | 'attack' | 'death' => {
 /* ─── Victory rewards animation ─────────────────────────────── */
 
 const VICTORY_REWARDS = [
-  { label: 'Ore',     resource: 'ore',     color: '#a0a0a0', amount: 24 },
-  { label: 'Gold',    resource: 'gold',    color: '#f59e0b', amount: 12 },
-  { label: 'Diamond', resource: 'diamond', color: '#38bdf8', amount: 4  },
-  { label: 'Mana',    resource: 'mana',    color: '#a855f7', amount: 8  },
+  { label: 'Ore',     resource: 'ore',     color: '#5a5a5a', amount: 24, iconSize: 30 },
+  { label: 'Gold',    resource: 'gold',    color: '#b45309', amount: 12, iconSize: 36 },
+  { label: 'Diamond', resource: 'diamond', color: '#38bdf8', amount: 4,  iconSize: 30 },
+  { label: 'Mana',    resource: 'mana',    color: '#a855f7', amount: 8,  iconSize: 36 },
 ];
 
 const VictoryRewards: React.FC = () => {
@@ -324,9 +324,9 @@ const VictoryRewards: React.FC = () => {
       backgroundImage: 'url(/scrollbg.png)',
       backgroundSize: '100% 100%',
       backgroundRepeat: 'no-repeat',
-      padding: '28px 36px',
-      display: 'flex', flexDirection: 'column', gap: '12px',
-      minWidth: 220,
+      padding: '96px 60px 96px 88px',
+      display: 'flex', flexDirection: 'column', gap: '14px',
+      minWidth: 340,
     }}>
       {VICTORY_REWARDS.map((r, i) => (
         <div key={r.resource} style={{
@@ -338,16 +338,16 @@ const VictoryRewards: React.FC = () => {
           <img
             src={`/images/resources/${r.resource}logo.png`}
             alt={r.label}
-            style={{ width: 30, height: 30, imageRendering: 'pixelated', flexShrink: 0 }}
+            style={{ width: r.iconSize, height: r.iconSize, imageRendering: 'pixelated', flexShrink: 0 }}
           />
           <span style={{
-            fontFamily: 'monospace', fontSize: '13px',
-            color: 'rgba(255,255,255,0.45)', width: 58,
+            fontFamily: "'Pixelify Sans', sans-serif", fontSize: '14px',
+            color: 'rgba(0,0,0,0.6)', width: 68,
           }}>
             {r.label}
           </span>
           <span style={{
-            fontFamily: 'monospace', fontSize: '20px', fontWeight: 800,
+            fontFamily: "'Pixelify Sans', sans-serif", fontSize: '20px', fontWeight: 700,
             color: r.color, minWidth: 48,
             textShadow: `0 0 18px ${r.color}88`,
           }}>
@@ -2049,7 +2049,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         }}>
           <div style={{
             fontSize: '2.6rem', fontWeight: 900,
-            letterSpacing: '4px', fontFamily: 'monospace',
+            letterSpacing: '4px', fontFamily: "'Pixelify Sans', sans-serif",
             color: result === 'victory' ? '#00e5ff' : '#ef4444',
             textShadow: `0 0 50px ${result === 'victory' ? 'rgba(0,229,255,0.55)' : 'rgba(239,68,68,0.55)'}`,
           }}>
