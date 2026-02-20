@@ -125,7 +125,7 @@ const heroes = [
     color: 'from-emerald-500/20 to-teal-600/10',
     accent: 'text-emerald-400',
     border: 'border-emerald-500/30',
-    abilities: ['Rampage', 'Blood Frenzy', 'Earthshatter'],
+    abilities: ['Earthshatter', 'Blood Frenzy', 'Rage'],
     idleSprite: { src: '/heroes/Minotaur_1/Idle.png', frames: 10, frameWidth: 128, frameHeight: 128 },
     spriteScale: 195,
     spriteX: 20,
