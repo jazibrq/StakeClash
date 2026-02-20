@@ -65,6 +65,7 @@ interface GS {
 interface AfterimageState {
   x: number; y: number;
   alpha: number;        // starts at ~0.55, fades to 0
+  fadeRate: number;     // alpha drained per second — origin fast, near-dest slow
   state: PState;
   frameIndex: number;
   facing: 1 | -1;
@@ -112,7 +113,7 @@ const KNIGHT_HIT_POINTS = 2;   // hits required to kill a knight
 
 /* ── dash constants ── */
 const DASH_DISTANCE = 130;   // px — instant snap displacement
-const DASH_DURATION = 500;   // ms — stutter duration after snap
+const DASH_DURATION = 230;   // ms — stutter duration after snap
 const DASH_COOLDOWN = 1200;  // ms — cooldown after stutter ends
 
 /* ── mage constants ── */
@@ -211,9 +212,9 @@ const skeletonAnimKey = mageAnimKey; // same mapping
 
 /* ─── component ─────────────────────────────────────────────── */
 
-interface Props { onReturn: () => void; }
+interface Props { onReturn: () => void; autoStart?: boolean; }
 
-const RaidGame: React.FC<Props> = ({ onReturn }) => {
+const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rootRef    = useRef<HTMLDivElement>(null);
   const gsRef      = useRef<GS | null>(null);
@@ -225,8 +226,8 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bladestormVideoRef = useRef<HTMLVideoElement | null>(null);
   const bladestormChargeRef = useRef(0);   // 0 → BLADESTORM_CHARGE_MAX
-  const afterimageRef = useRef<AfterimageState | null>(null);
-  const [started, setStarted] = useState(false);
+  const afterimageRef = useRef<AfterimageState[]>([]);
+  const [started, setStarted] = useState(autoStart);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
   const [bladestormPlaying, setBladestormPlaying] = useState(false);
 
@@ -342,6 +343,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
     const W = canvas.width;
     const H = canvas.height;
 
+    canvas.focus(); // ensure keyboard events work immediately (critical for autoStart)
     gsRef.current = makeGS(W, H);
 
     /* ── state transition (resets frame + timer) ── */
@@ -445,14 +447,15 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
 
       /* shield orb — centered on sprite body */
       if (p.shieldActive) {
-        const shieldY = p.y + 8;  // shift down to align with character torso
+        const shieldX = p.x - p.facing * 30;  // character is left-of-center in frame; flips when mirrored
+        const shieldY = p.y + 22;              // character torso sits in lower half of 160px frame
         ctx.save();
         ctx.globalAlpha = 0.38;
         ctx.fillStyle   = '#42a5f5';
         ctx.shadowColor = '#1e88e5';
         ctx.shadowBlur  = 22;
         ctx.beginPath();
-        ctx.arc(p.x, shieldY, RENDER_SIZE * 0.25, 0, Math.PI * 2);
+        ctx.arc(shieldX, shieldY, RENDER_SIZE * 0.25, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 0.7;
         ctx.strokeStyle = '#90caf9';
@@ -1101,25 +1104,29 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       }
       drawProjectiles(gs.enemyProjectiles);
 
-      /* ── phase dash afterimage (ghost at origin position) ── */
-      const ai = afterimageRef.current;
-      if (ai) {
-        const aiCfg = ANIM_CONFIG[ai.state];
-        const aiImg = playerSpritesRef.current[ai.state];
-        if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
-          const frameW = aiImg.width / aiCfg.frames;
-          const half   = RENDER_SIZE / 2;
-          ctx.save();
-          ctx.globalAlpha = Math.max(0, ai.alpha);
-          ctx.filter = 'grayscale(70%) brightness(0.6)';
-          ctx.translate(ai.x, ai.y);
-          if (ai.facing === -1) ctx.scale(-1, 1);
-          ctx.drawImage(aiImg, ai.frameIndex * frameW, 0, frameW, aiImg.height, -half, -half, RENDER_SIZE, RENDER_SIZE);
-          ctx.restore();
+      /* ── phase dash trail (flickering ghosts from origin → destination) ── */
+      if (afterimageRef.current.length > 0) {
+        const half = RENDER_SIZE / 2;
+        for (const ai of afterimageRef.current) {
+          if (ai.alpha <= 0) continue;
+          /* per-ghost random flicker — skip ~40% of frames for each ghost */
+          if (Math.random() < 0.4) continue;
+          const aiCfg = ANIM_CONFIG[ai.state];
+          const aiImg = playerSpritesRef.current[ai.state];
+          if (aiImg && aiImg.complete && aiImg.naturalWidth > 0) {
+            const frameW = aiImg.width / aiCfg.frames;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, ai.alpha);
+            ctx.filter = 'grayscale(70%) brightness(0.6)';
+            ctx.translate(ai.x, ai.y);
+            if (ai.facing === -1) ctx.scale(-1, 1);
+            ctx.drawImage(aiImg, ai.frameIndex * frameW, 0, frameW, aiImg.height, -half, -half, RENDER_SIZE, RENDER_SIZE);
+            ctx.restore();
+          }
+          /* origin ghost fades fastest, near-dest ghost fades slowest */
+          ai.alpha -= dt * ai.fadeRate;
         }
-        /* fade: 0.55 → 0 over 0.5 s */
-        ai.alpha -= dt * 1.1;
-        if (ai.alpha <= 0) afterimageRef.current = null;
+        afterimageRef.current = afterimageRef.current.filter(ai => ai.alpha > 0);
       }
 
       drawPlayer(p);
@@ -1152,26 +1159,37 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
         /* SHIFT → phase dash (instant snap + afterimage + stutter) */
         if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') &&
             !p.dashActive && p.dashCooldown <= 0 && p.state !== 'dead') {
-          /* 1. store afterimage at current position */
-          afterimageRef.current = {
-            x: p.x, y: p.y,
-            alpha: 0.55,
-            state: p.state,
-            frameIndex: p.frameIndex,
-            facing: p.facing,
-          };
-          /* 2. compute direction from held movement keys */
+          /* 1. compute direction from held movement keys */
           let ddx = 0, ddy = 0;
           if (gs.keys['KeyW'] || gs.keys['ArrowUp'])    ddy -= 1;
           if (gs.keys['KeyS'] || gs.keys['ArrowDown'])  ddy += 1;
           if (gs.keys['KeyA'] || gs.keys['ArrowLeft'])  ddx -= 1;
           if (gs.keys['KeyD'] || gs.keys['ArrowRight']) ddx += 1;
-          if (ddx === 0 && ddy === 0) ddx = p.facing; // default: face direction
+          if (ddx === 0 && ddy === 0) ddx = p.facing;
           const dLen = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
-          /* 3. instant snap to new position */
-          p.x = Math.max(PLAYER_RADIUS, Math.min(W - PLAYER_RADIUS, p.x + (ddx / dLen) * DASH_DISTANCE));
-          p.y = Math.max(PLAYER_RADIUS, Math.min(H - PLAYER_RADIUS, p.y + (ddy / dLen) * DASH_DISTANCE));
-          /* 4. begin stutter phase */
+          /* 2. compute snap destination */
+          const snapX = Math.max(PLAYER_RADIUS, Math.min(W - PLAYER_RADIUS, p.x + (ddx / dLen) * DASH_DISTANCE));
+          const snapY = Math.max(PLAYER_RADIUS, Math.min(H - PLAYER_RADIUS, p.y + (ddy / dLen) * DASH_DISTANCE));
+          /* 3. spawn trail ghosts evenly spaced from origin to destination */
+          const TRAIL_COUNT = 5;
+          afterimageRef.current = [];
+          for (let i = 0; i < TRAIL_COUNT; i++) {
+            const t = (i / (TRAIL_COUNT - 1)) * 0.85; // 0 → 0.85 (stops before hero)
+            const fadeRate = 4.0 - t * 3.9;           // origin: ~4.0/s fast, near-dest: ~0.68/s slow
+            afterimageRef.current.push({
+              x: p.x + (snapX - p.x) * t,
+              y: p.y + (snapY - p.y) * t,
+              alpha: 0.62 - t * 0.15,                 // origin brighter, near-dest dimmer
+              fadeRate,
+              state: p.state,
+              frameIndex: p.frameIndex,
+              facing: p.facing,
+            });
+          }
+          /* 4. instant snap */
+          p.x = snapX;
+          p.y = snapY;
+          /* 5. begin stutter phase */
           p.dashActive = true;
           p.dashTimer  = DASH_DURATION;
         }
@@ -1208,11 +1226,11 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
       ref={rootRef}
       style={{
         position: 'relative',
-        width: '100%', height: '580px',
-        borderRadius: '12px', overflow: 'hidden',
+        width: '100%', height: autoStart ? '100%' : '580px',
+        borderRadius: autoStart ? 0 : '12px', overflow: 'hidden',
         background: '#000',
-        border: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 0 60px rgba(0,229,255,0.04), 0 24px 80px rgba(0,0,0,0.8)',
+        border: autoStart ? 'none' : '1px solid rgba(255,255,255,0.06)',
+        boxShadow: autoStart ? 'none' : '0 0 60px rgba(0,229,255,0.04), 0 24px 80px rgba(0,0,0,0.8)',
       }}
       onClick={() => canvasRef.current?.focus()}
     >
@@ -1360,7 +1378,7 @@ const RaidGame: React.FC<Props> = ({ onReturn }) => {
             onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
             onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
           >
-            RETURN TO CLASH
+            RETURN TO WEBSITE
           </button>
         </div>
       )}

@@ -197,11 +197,11 @@ const Tooltip = ({
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: cfg.color, flexShrink: 0,
-          boxShadow: `0 0 8px ${cfg.color}`,
-        }} />
+        <img
+          src={`/images/resources/${resource}logo.png`}
+          alt={resource}
+          style={{ width: 20, height: 20, imageRendering: 'pixelated', flexShrink: 0 }}
+        />
         <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '13px', color: cfg.color }}>
           {cfg.name}
         </span>
