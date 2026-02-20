@@ -85,7 +85,7 @@ const heroes = [
     border: 'border-cyan-500/30',
     abilities: ['Sword Dash', 'Shield Aura', 'Blade Storm'],
     idleSprite: { src: '/heroes/Idle.png', frames: 6, frameWidth: 128, frameHeight: 128 },
-    spriteX: 95,   // px offset: negative = left, positive = right
+    spriteX: 105,   // px offset: negative = left, positive = right
     spriteY: 0,   // px offset: negative = up, positive = down
   },
   {
@@ -95,11 +95,11 @@ const heroes = [
     description: 'An armored juggernaut clad in crimson steel. Charges headlong into battle with unwavering resolve.',
     stats: { power: 82, defense: 90, speed: 45 },
     color: 'from-violet-500/20 to-purple-700/10',
-    accent: 'text-violet-400',
+    accent: 'text-neutral-900',
     border: 'border-violet-500/30',
     abilities: ['Crimson Charge', 'Iron Bulwark', 'Rally Cry'],
     idleSprite: { src: '/heroes/Knight_3/Idle.png', frames: 4, frameWidth: 128, frameHeight: 128 },
-    spriteX: 100,
+    spriteX: 115,
     spriteY: 0,
   },
   {
