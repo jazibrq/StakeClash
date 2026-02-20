@@ -123,7 +123,8 @@ const SHIELD_DURATION  = 5000;   // ms shield stays active
 const SHIELD_COOLDOWN  = 10000;  // ms before shield can be used again
 
 const BLADESTORM_CHARGE_MAX  = 100;  // full bar = 100 charge
-const BLADESTORM_PER_KILL   = 20;   // charge gained per enemy kill
+const BLADESTORM_PER_KILL    = 20;   // charge gained per enemy kill
+const BLADESTORM_PER_BOSS_HIT = 5;  // charge gained per hit on the minotaur boss
 
 /* ── skeleton constants ── */
 const SKELETON_RENDER_SIZE     = 136;
@@ -413,14 +414,13 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       vid.playbackRate = 3;
       vid.play().catch(() => {});
       vid.onended = () => {
-        // kill all alive enemies after video completes; boss is immune — just heavily damaged
+        // kill all alive enemies after video completes; boss takes 25% HP damage only
         const g = gsRef.current;
         if (g) {
           for (const e of g.enemies) {
             if (e.state === 'dead' || e.state === 'dying') continue;
             if (e.type === 'boss' || e.type === 'minotaur_boss') {
-              // bladestorm deals 25–33% of max HP, always leaves at least 1 hp
-              const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * (0.25 + Math.random() * 0.083));
+              const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * 0.25);
               e.hp = Math.max(1, e.hp - dmg);
             } else {
               e.state = e.type === 'knight' ? 'dead' : 'dying';
@@ -433,11 +433,11 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         setBladestormPlaying(false);
       };
     } else {
-      // fallback if video not loaded — kill immediately; boss immune
+      // fallback if video not loaded — kill immediately; boss takes 25% HP damage only
       for (const e of gs.enemies) {
         if (e.state === 'dead' || e.state === 'dying') continue;
         if (e.type === 'boss' || e.type === 'minotaur_boss') {
-          const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * (0.25 + Math.random() * 0.083));
+          const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * 0.25);
           e.hp = Math.max(1, e.hp - dmg);
         } else {
           e.state = e.type === 'knight' ? 'dead' : 'dying';
@@ -1129,6 +1129,11 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
               } else if (e.type === 'minotaur_boss') {
                 // boss takes real damage per melee hit (~20 hits to kill)
                 e.hp -= MINOTAUR_BOSS_PLAYER_MELEE_DMG;
+                // charge ultimate on every hit
+                bladestormChargeRef.current = Math.min(
+                  BLADESTORM_CHARGE_MAX,
+                  bladestormChargeRef.current + BLADESTORM_PER_BOSS_HIT,
+                );
                 if (e.hp <= 0) {
                   e.hp         = 0;
                   e.state      = 'dying';
@@ -1194,7 +1199,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
 
       /* ── enemy state machines + movement ── */
       if (p.state !== 'dead' && !bladestormActiveRef.current && !rageActiveRef.current) {
-        const speed = ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9;
+        const speed = (ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9) * (gs.wave === 2 ? 1.5 : 1.0);
 
         for (const e of gs.enemies) {
           if (e.state === 'dying' || e.state === 'dead') continue;
@@ -1656,7 +1661,11 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       }
 
       /* ── spawn (stops once boss has spawned) ── */
-      if (!gs.bossSpawned && now - gs.lastSpawn > 4500) spawnEnemy(gs, now);
+      const spawnInterval = gs.wave === 2 ? 2250 : 4500;
+      if (!gs.bossSpawned && now - gs.lastSpawn > spawnInterval) {
+        spawnEnemy(gs, now);
+        if (gs.wave === 2) spawnEnemy(gs, now); // twice as many in wave 2
+      }
 
       /* ── player HP regen (2 hp/s, capped at max) ── */
       if (p.state !== 'dead') {
@@ -1873,9 +1882,14 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
                 if (g) {
                   for (const e of g.enemies) {
                     if (e.state === 'dead' || e.state === 'dying') continue;
-                    e.state = e.type === 'knight' ? 'dead' : 'dying';
-                    e.frameIndex = 0;
-                    e.animTimer  = 0;
+                    if (e.type === 'boss' || e.type === 'minotaur_boss') {
+                      const dmg = Math.round(MINOTAUR_BOSS_MAX_HP * 0.25);
+                      e.hp = Math.max(1, e.hp - dmg);
+                    } else {
+                      e.state = e.type === 'knight' ? 'dead' : 'dying';
+                      e.frameIndex = 0;
+                      e.animTimer  = 0;
+                    }
                   }
                 }
                 setBladestormPlaying(false);
