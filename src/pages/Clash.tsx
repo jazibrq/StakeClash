@@ -1,11 +1,119 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { Navigation } from '@/components/Navigation';
 import RaidGame from '@/components/RaidGame';
 
-type Phase = 'search' | 'playing';
+type Phase = 'search' | 'selecting' | 'playing';
+
+/* ── Animated sprite canvas ── */
+const AnimatedSprite = ({
+  src, frames, frameWidth, frameHeight, frameDuration = 150, size = 96,
+}: {
+  src: string; frames: number; frameWidth: number; frameHeight: number;
+  frameDuration?: number; size?: number;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef    = useRef<HTMLImageElement | null>(null);
+  const frameRef  = useRef(0);
+  const timerRef  = useRef(0);
+  const rafRef    = useRef(0);
+
+  const draw = useCallback(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    const img = imgRef.current;
+    if (!ctx || !img || !img.complete) return;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(img, frameRef.current * frameWidth, 0, frameWidth, frameHeight, 0, 0, size, size);
+  }, [frameWidth, frameHeight, size]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => { imgRef.current = img; draw(); };
+    imgRef.current = img;
+  }, [src, draw]);
+
+  useEffect(() => {
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = now - last; last = now;
+      timerRef.current += dt;
+      if (timerRef.current >= frameDuration) {
+        timerRef.current -= frameDuration;
+        frameRef.current = (frameRef.current + 1) % frames;
+        draw();
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [frames, frameDuration, draw]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{ imageRendering: 'pixelated', width: size, height: size, display: 'block' }}
+    />
+  );
+};
+
+/* ── Static random resource counts (generated once at module load) ── */
+const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+const RESOURCE_COUNTS: [number, number, number, number][] = [
+  [rand(10, 60),  rand(5, 35),   rand(2, 18),  rand(20, 80)],   // easy
+  [rand(60, 150), rand(30, 90),  rand(15, 55), rand(80, 220)],  // medium
+  [rand(150, 350),rand(90, 220), rand(50, 130),rand(200, 600)], // hard
+];
+
+const RESOURCES = [
+  { name: 'Ore',     logo: '/images/resources/orelogo.png' },
+  { name: 'Gold',    logo: '/images/resources/goldlogo.png' },
+  { name: 'Diamond', logo: '/images/resources/diamondlogo.png' },
+  { name: 'Mana',    logo: '/images/resources/manalogo.png' },
+];
+
+const COLUMNS = [
+  {
+    difficulty: 'Easy',
+    color: '#22c55e',
+    glow: 'rgba(34,197,94,0.35)',
+    border: 'rgba(34,197,94,0.4)',
+    wallet: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    heroName: 'Scarlet Knight',
+    heroOffsetX: 56,
+    heroScale: 2.2,
+    heroSize: 124,
+    sprite: { src: '/heroes/Knight_3/Idle.png', frames: 4, frameWidth: 128, frameHeight: 128 },
+  },
+  {
+    difficulty: 'Medium',
+    color: '#eab308',
+    glow: 'rgba(234,179,8,0.35)',
+    border: 'rgba(234,179,8,0.4)',
+    wallet: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+    heroName: 'Minotaur',
+    heroOffsetX: 0,
+    heroScale: 1.9,
+    heroSize: 112,
+    sprite: { src: '/heroes/Minotaur_1/Idle.png', frames: 10, frameWidth: 128, frameHeight: 128 },
+  },
+  {
+    difficulty: 'Hard',
+    color: '#ef4444',
+    glow: 'rgba(239,68,68,0.35)',
+    border: 'rgba(239,68,68,0.4)',
+    wallet: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+    heroName: 'Lone Nomad',
+    heroOffsetX: 0,
+    heroScale: 2.2,
+    heroSize: 124,
+    sprite: { src: '/heroes/Wanderer Magican/Idle.png', frames: 8, frameWidth: 128, frameHeight: 128 },
+  },
+] as const;
 
 const Clash = () => {
   const [phase, setPhase] = useState<Phase>('search');
@@ -13,10 +121,13 @@ const Clash = () => {
   const navigate = useNavigate();
 
   const handleSearch = useCallback(() => {
+    setPhase('selecting');
+  }, []);
+
+  const handlePlay = useCallback(() => {
     setPhase('playing');
-    /* Request browser fullscreen after the game div mounts */
     setTimeout(() => {
-      containerRef.current?.requestFullscreen().catch(() => {/* ok — game is still visually full-screen via CSS */});
+      containerRef.current?.requestFullscreen().catch(() => {});
     }, 50);
   }, []);
 
@@ -29,12 +140,11 @@ const Clash = () => {
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {/* Ambient background always visible */}
-      <VideoBackground />
+      <VideoBackground videoSrc="/videos/grimbackground.mp4" />
       <GrainOverlay />
-      <Navigation />
+      <Navigation forceWhiteNavText />
 
-      {/* ── Search phase: just the button ── */}
+      {/* ── Search phase ── */}
       {phase === 'search' && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -64,6 +174,208 @@ const Clash = () => {
           >
             SEARCH FOR CLASH
           </button>
+        </div>
+      )}
+
+      {/* ── Selecting phase: 3 difficulty columns ── */}
+      {phase === 'selecting' && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          overflowY: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+          padding: '80px 40px 40px',
+        }}>
+          <div style={{
+            display: 'flex',
+            gap: '28px',
+            alignItems: 'stretch',
+            width: '100%',
+            maxWidth: '1040px',
+          }}>
+            {COLUMNS.map((col, idx) => (
+              <div
+                key={col.difficulty}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  background: 'linear-gradient(180deg, rgba(127,29,29,0.40), rgba(35,8,8,0.88))',
+                  border: '1px solid rgba(239,68,68,0.46)',
+                  borderRadius: '18px',
+                  padding: '24px 20px 20px',
+                  boxShadow: '0 0 52px rgba(239,68,68,0.30), 0 8px 40px rgba(0,0,0,0.72)',
+                  gap: '14px',
+                }}
+              >
+                {/* Difficulty label */}
+                <div style={{
+                  fontSize: '20px',
+                  fontWeight: 900,
+                  letterSpacing: '2px',
+                  color: '#ffffff',
+                  fontFamily: 'monospace',
+                  textShadow: '0 0 24px rgba(239,68,68,0.7)',
+                }}>
+                  {col.difficulty}
+                </div>
+
+                {/* Hero name */}
+                <div style={{
+                  fontSize: '12px',
+                  color: 'rgba(255,255,255,0.55)',
+                  fontFamily: 'monospace',
+                  letterSpacing: '2px',
+                  textTransform: 'uppercase',
+                }}>
+                  {col.heroName}
+                </div>
+
+                {/* Hero idle animation */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  height: '214px',
+                  width: '100%',
+                }}>
+                  <div style={{ transform: `translateX(${col.heroOffsetX}px)` }}>
+                    <div style={{ transform: `scale(${col.heroScale})`, transformOrigin: 'bottom center' }}>
+                      <AnimatedSprite
+                        src={col.sprite.src}
+                        frames={col.sprite.frames}
+                        frameWidth={col.sprite.frameWidth}
+                        frameHeight={col.sprite.frameHeight}
+                        size={col.heroSize}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{
+                  width: '100%',
+                  height: '1px',
+                  background: `linear-gradient(90deg, transparent, ${col.border}, transparent)`,
+                }} />
+
+                {/* Resources available */}
+                <div style={{ width: '100%' }}>
+                  <div style={{
+                    fontSize: '10px',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontFamily: 'monospace',
+                    letterSpacing: '2px',
+                    marginBottom: '10px',
+                    textAlign: 'center',
+                  }}>
+                    RESOURCES AVAILABLE:
+                  </div>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px',
+                  }}>
+                    {RESOURCES.map((res, ri) => (
+                      <div
+                        key={res.name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '7px',
+                          background: 'rgba(255,255,255,0.05)',
+                          borderRadius: '8px',
+                          padding: '7px 10px',
+                        }}
+                      >
+                        <img
+                          src={res.logo}
+                          alt={res.name}
+                          style={{ width: 26, height: 26, objectFit: 'contain', flexShrink: 0 }}
+                        />
+                        <span style={{
+                          fontFamily: 'monospace',
+                          fontSize: '13px',
+                          color: 'rgba(255,255,255,0.9)',
+                          fontWeight: 700,
+                        }}>
+                          {RESOURCE_COUNTS[idx][ri]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Wallet address above button */}
+                <div style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  marginTop: '2px',
+                }}>
+                  <div style={{
+                    fontSize: '10px',
+                    color: 'rgba(255,255,255,0.45)',
+                    fontFamily: 'monospace',
+                    letterSpacing: '1.2px',
+                    textAlign: 'center',
+                  }}>
+                    WALLET ADDRESS
+                  </div>
+                  <div style={{
+                    fontFamily: 'monospace',
+                    fontSize: '10px',
+                    color: 'rgba(255,255,255,0.78)',
+                    textAlign: 'center',
+                    padding: '6px 8px',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: '6px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    overflowWrap: 'anywhere',
+                    lineHeight: 1.35,
+                  }}>
+                    {col.wallet}
+                  </div>
+                </div>
+
+                {/* Play button */}
+                <button
+                  onClick={handlePlay}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                    border: '1px solid rgba(248,113,113,0.75)',
+                    borderRadius: '10px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 900,
+                    letterSpacing: '3px',
+                    cursor: 'pointer',
+                    fontFamily: 'monospace',
+                    boxShadow: '0 0 34px rgba(239,68,68,0.48)',
+                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    marginTop: '4px',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'scale(1.04)';
+                    e.currentTarget.style.boxShadow = '0 0 58px rgba(239,68,68,0.65)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 0 34px rgba(239,68,68,0.48)';
+                  }}
+                >
+                  {col.difficulty}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

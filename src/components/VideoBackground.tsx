@@ -3,9 +3,13 @@ import type { CSSProperties } from 'react';
 
 interface VideoBackgroundProps {
   overlayOpacity?: number;
+  videoSrc?: string;
 }
 
-export const VideoBackground = ({ overlayOpacity = 0.5 }: VideoBackgroundProps) => {
+export const VideoBackground = ({
+  overlayOpacity = 0.5,
+  videoSrc = '/videos/upscaled-video.mp4',
+}: VideoBackgroundProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fallbackRef = useRef<HTMLDivElement>(null);
@@ -269,7 +273,7 @@ export const VideoBackground = ({ overlayOpacity = 0.5 }: VideoBackgroundProps) 
           warpActive ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        <source src="/videos/upscaled-video.mp4" type="video/mp4" />
+        <source src={videoSrc} type="video/mp4" />
       </video>
 
       {/* WebGL warp canvas */}

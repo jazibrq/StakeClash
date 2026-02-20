@@ -21,7 +21,11 @@ const navItems = [
   { label: 'Hero', path: '/hero' },
 ];
 
-export const Navigation = () => {
+interface NavigationProps {
+  forceWhiteNavText?: boolean;
+}
+
+export const Navigation = ({ forceWhiteNavText = true }: NavigationProps) => {
   const location = useLocation();
   const { isConnected, isConnecting, address, shortenedAddress, connect, disconnect, error } = useWalletContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -82,9 +86,13 @@ export const Navigation = () => {
                   to={item.path}
                   className={cn(
                   'px-4 py-2 text-lg font-medium transition-colors relative uppercase tracking-wide font-display',
-                    location.pathname === item.path
-                      ? 'text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
+                    forceWhiteNavText
+                      ? 'text-white hover:text-white/90'
+                      : (
+                          location.pathname === item.path
+                            ? 'text-primary'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )
                 )}
               >
                 {item.label}
@@ -173,9 +181,13 @@ export const Navigation = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
                   'block px-4 py-3 rounded-lg text-base font-medium transition-colors uppercase tracking-wide font-display',
-                  location.pathname === item.path
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground'
+                  forceWhiteNavText
+                    ? 'text-white hover:bg-surface-2 hover:text-white/90'
+                    : (
+                        location.pathname === item.path
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground'
+                      )
                 )}
               >
                 {item.label}
