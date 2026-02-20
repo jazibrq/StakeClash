@@ -60,7 +60,15 @@ const AnimatedSprite = ({
       ref={canvasRef}
       width={size}
       height={size}
-      style={{ width: size, height: size, imageRendering: 'pixelated' }}
+      className="animated-sprite"
+      style={{
+        imageRendering: 'pixelated',
+        width: size,
+        height: size,
+        flexShrink: 0,
+        transform: 'scale(1.8)',
+        transformOrigin: 'bottom center',
+      }}
     />
   );
 };
@@ -75,20 +83,24 @@ const heroes = [
     color: 'from-cyan-500/20 to-blue-600/10',
     accent: 'text-cyan-400',
     border: 'border-cyan-500/30',
-    abilities: ['Blade Rush', 'Fortify', 'Last Stand'],
+    abilities: ['Sword Dash', 'Shield Aura', 'Blade Storm'],
     idleSprite: { src: '/heroes/Idle.png', frames: 6, frameWidth: 128, frameHeight: 128 },
+    spriteX: 95,   // px offset: negative = left, positive = right
+    spriteY: 0,   // px offset: negative = up, positive = down
   },
   {
     id: 2,
-    name: 'Shadow Breaker',
-    class: 'Rogue',
-    description: 'Strikes from the darkness with lethal precision. No target escapes the shadows.',
-    stats: { power: 88, defense: 42, speed: 97 },
+    name: 'Scarlet Knight',
+    class: 'Knight',
+    description: 'An armored juggernaut clad in crimson steel. Charges headlong into battle with unwavering resolve.',
+    stats: { power: 82, defense: 90, speed: 45 },
     color: 'from-violet-500/20 to-purple-700/10',
     accent: 'text-violet-400',
     border: 'border-violet-500/30',
-    abilities: ['Backstab', 'Vanish', 'Smoke Screen'],
+    abilities: ['Crimson Charge', 'Iron Bulwark', 'Rally Cry'],
     idleSprite: { src: '/heroes/Knight_3/Idle.png', frames: 4, frameWidth: 128, frameHeight: 128 },
+    spriteX: 100,
+    spriteY: 0,
   },
   {
     id: 3,
@@ -101,42 +113,52 @@ const heroes = [
     border: 'border-amber-500/30',
     abilities: ['Chain Lightning', 'Arcane Surge', 'Tempest'],
     idleSprite: { src: '/heroes/Lightning Mage/Idle.png', frames: 7, frameWidth: 128, frameHeight: 128 },
+    spriteX: 35,
+    spriteY: 0,
   },
   {
     id: 4,
     name: 'Gold Keeper',
-    class: 'Strategist',
-    description: 'Controls the economy of war. Outmaneuvers opponents through superior planning.',
-    stats: { power: 55, defense: 68, speed: 58 },
+    class: 'Berserker',
+    description: 'A raging titan who trades caution for raw destruction. The more damage taken, the harder the strikes.',
+    stats: { power: 95, defense: 40, speed: 70 },
     color: 'from-emerald-500/20 to-teal-600/10',
     accent: 'text-emerald-400',
     border: 'border-emerald-500/30',
-    abilities: ['Market Control', 'Yield Harvest', 'Grand Scheme'],
+    abilities: ['Rampage', 'Blood Frenzy', 'Earthshatter'],
     idleSprite: { src: '/heroes/Minotaur_1/Idle.png', frames: 10, frameWidth: 128, frameHeight: 128 },
+    spriteScale: 195,
+    spriteX: 20,
+    spriteY: 0,
   },
   {
     id: 5,
-    name: 'Void Hunter',
-    class: 'Ranger',
-    description: 'Patrols the edge of reality. A relentless tracker with unmatched ranged precision.',
-    stats: { power: 80, defense: 54, speed: 83 },
+    name: 'Foolish Peon',
+    class: 'Jester',
+    description: 'A chaotic trickster who confounds foes with wild antics. Unpredictable and dangerously lucky.',
+    stats: { power: 60, defense: 30, speed: 95 },
     color: 'from-red-500/20 to-rose-700/10',
     accent: 'text-red-400',
     border: 'border-red-500/30',
-    abilities: ["Void Arrow", "Mark Target", "Hunter's Instinct"],
+    abilities: ['Juggle Blades', 'Pratfall Trap', 'Wild Card'],
     idleSprite: { src: '/heroes/Ninja_Peasant/Idle.png', frames: 6, frameWidth: 96, frameHeight: 96 },
+    spriteScale: 195,
+    spriteX: 10,
+    spriteY: 0,
   },
   {
     id: 6,
-    name: 'Steel Forge',
-    class: 'Engineer',
-    description: 'Builds unstoppable war machines. Turns the tide of battle through superior technology.',
-    stats: { power: 65, defense: 88, speed: 40 },
+    name: 'Lone Nomad',
+    class: 'Rogue',
+    description: 'A drifter who strikes from the shadows, vanishing before the dust settles. Silence is the deadliest weapon.',
+    stats: { power: 78, defense: 48, speed: 92 },
     color: 'from-slate-500/20 to-gray-700/10',
     accent: 'text-slate-300',
     border: 'border-slate-500/30',
-    abilities: ['Deploy Turret', 'Iron Armor', 'Overclock'],
+    abilities: ['Shadow Step', 'Poison Blade', 'Vanishing Act'],
     idleSprite: { src: '/heroes/Wanderer Magican/Idle.png', frames: 8, frameWidth: 128, frameHeight: 128 },
+    spriteX: 10,
+    spriteY: 0,
   },
 ];
 
@@ -171,31 +193,31 @@ const Hero = () => {
   const [selectedHero, setSelectedHero] = useState(heroes[0]);
 
   return (
-    <div className="min-h-screen">
+    <div className="h-screen overflow-hidden flex flex-col">
       <VideoBackground />
       <GrainOverlay />
       <Navigation />
 
-      <main className="relative z-10 pt-24 pb-12">
-        <div className="container mx-auto max-w-7xl px-4">
+      <main className="relative z-10 flex-1 flex flex-col pt-20 pb-3 min-h-0">
+        <div className="container mx-auto max-w-7xl px-4 flex flex-col flex-1 min-h-0">
 
           {/* Header */}
-          <div className="mb-10">
-            <h1 className="text-3xl font-bold mb-2">Hero</h1>
-            <p className="text-muted-foreground">Choose your champion and enter the clash</p>
+          <div className="mb-3 flex-shrink-0">
+            <h1 className="text-2xl font-bold mb-0.5">Hero</h1>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid lg:grid-cols-3 gap-4 flex-1 min-h-0">
 
             {/* Hero Grid */}
-            <div className="lg:col-span-2">
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 min-h-0">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 h-full" style={{ gridTemplateRows: '1fr 1fr' }}>
                 {heroes.map((hero) => (
                   <button
                     key={hero.id}
+                    data-hero-id={hero.id}
                     onClick={() => setSelectedHero(hero)}
                     className={cn(
-                      'relative text-left rounded-xl border p-5 transition-all duration-200 group w-full',
+                      'relative text-left rounded-xl border p-2 transition-all duration-200 group w-full flex flex-col min-h-0 overflow-hidden',
                       'bg-gradient-to-br',
                       hero.color,
                       selectedHero.id === hero.id
@@ -211,14 +233,17 @@ const Hero = () => {
                     )}
 
                     {/* Hero sprite / placeholder */}
-                    <div className="w-full h-56 mb-3 flex items-center justify-center">
+                    <div
+                      className="flex-1 min-h-0 flex items-end justify-center overflow-hidden"
+                      style={{ transform: `translate(${hero.spriteX ?? 0}px, ${hero.spriteY ?? 0}px)` }}
+                    >
                       {hero.idleSprite ? (
                         <AnimatedSprite
                           src={hero.idleSprite.src}
                           frames={hero.idleSprite.frames}
                           frameWidth={hero.idleSprite.frameWidth}
                           frameHeight={hero.idleSprite.frameHeight}
-                          size={220}
+                          size={hero.spriteScale ?? 250}
                         />
                       ) : (
                         <Shield
@@ -227,28 +252,28 @@ const Hero = () => {
                       )}
                     </div>
 
-                    <h3 className="font-semibold text-sm mb-0.5">{hero.name}</h3>
-                    <p className={cn('text-xs font-medium mb-3', hero.accent)}>{hero.class}</p>
+                    <h3 className="font-semibold text-sm mb-0.5 flex-shrink-0 text-center w-full">{hero.name}</h3>
+                    <p className={cn('text-xs font-medium text-center w-full', hero.accent)}>{hero.class}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Selected Hero Detail Panel */}
-            <div className="space-y-4">
-              <div className={cn('card-surface-elevated p-6 rounded-xl border', selectedHero.border)}>
+            <div className="min-h-0 overflow-y-auto fortress-sidebar">
+              <div className={cn('card-surface-elevated p-5 rounded-xl border', selectedHero.border)}>
                 {/* Header */}
                 <div className="mb-2">
-                  <h2 className="text-xl font-bold">{selectedHero.name}</h2>
+                  <h2 className="text-lg font-bold">{selectedHero.name}</h2>
                   <p className={cn('text-sm font-medium', selectedHero.accent)}>{selectedHero.class}</p>
                 </div>
 
-                <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                   {selectedHero.description}
                 </p>
 
                 {/* Stats */}
-                <div className="space-y-3 mb-6">
+                <div className="space-y-2.5 mb-4">
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Stats</p>
                   {Object.entries(selectedHero.stats).map(([key, val]) => (
                     <StatBar key={key} label={key} value={val} accent={selectedHero.accent} />
@@ -256,8 +281,8 @@ const Hero = () => {
                 </div>
 
                 {/* Abilities */}
-                <div className="mb-6">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Abilities</p>
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Abilities</p>
                   <div className="space-y-2">
                     {selectedHero.abilities.map((ability, i) => (
                       <div key={i} className="flex items-center gap-2 text-sm">
@@ -271,7 +296,7 @@ const Hero = () => {
                 {/* CTA */}
                 <Button className="w-full btn-cyan-gradient gap-2">
                   <Swords className="w-4 h-4" />
-                  Enter Clash as {selectedHero.name}
+                  Select {selectedHero.name}
                 </Button>
               </div>
             </div>
