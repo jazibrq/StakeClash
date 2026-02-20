@@ -163,8 +163,8 @@ const Learn = () => (
             />
             <Step
               n={6}
-              title="Withdraw Anytime"
-              body="You can withdraw your full principal and any unused yield at any time, subject to the underlying protocol's unstaking period (typically instant or 1–7 days depending on the protocol). No lock-ups imposed by StakeClash itself."
+              title="Withdrawal"
+              body="You can only withdraw your full principal and earned yield at the end of the season."
             />
           </div>
         </section>
