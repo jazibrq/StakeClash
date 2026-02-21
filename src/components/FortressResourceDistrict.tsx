@@ -279,9 +279,6 @@ const ResourcePanel = memo(({
   const nextLevel = level < 3 ? (level + 1) as Level : null;
   const nextReqs  = nextLevel ? cfg.levels[nextLevel].requires ?? [] : [];
   const canUpgrade = nextLevel !== null && nextReqs.every(r => resources[r.resource] >= r.amount);
-  const nextCostText = nextReqs.length > 0
-    ? nextReqs.map(r => `${r.amount} ${r.label}`).join(' + ')
-    : 'Free';
 
   const handleUpgrade = (ev: React.MouseEvent) => {
     ev.stopPropagation();
@@ -395,7 +392,28 @@ const ResourcePanel = memo(({
               boxShadow: canUpgrade ? `0 0 8px ${cfg.color}44` : 'none',
             }}
           >
-            UPGRADE ({nextCostText})
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span>UPGRADE</span>
+              {nextReqs.length > 0 ? (
+                <>
+                  {nextReqs.map((req, idx) => (
+                    <React.Fragment key={`${req.resource}-${idx}`}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <span>{req.amount}</span>
+                        <img
+                          src={`/images/resources/${req.resource}logo.png`}
+                          alt={req.resource}
+                          style={{ width: 10, height: 10, imageRendering: 'pixelated' }}
+                        />
+                      </span>
+                      {idx < nextReqs.length - 1 && <span>+</span>}
+                    </React.Fragment>
+                  ))}
+                </>
+              ) : (
+                <span>FREE</span>
+              )}
+            </span>
           </button>
         ) : (
           <div style={{
