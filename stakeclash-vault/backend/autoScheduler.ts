@@ -84,6 +84,7 @@ interface MirrorTx {
   transaction_id: string;
   result:         string;
   transfers:      HbarTransfer[];
+  scheduled:      boolean;
 }
 
 // ── Season state ───────────────────────────────────────────────────────────
@@ -267,8 +268,9 @@ async function poll(): Promise<void> {
       if (tx.result !== "SUCCESS")          continue;
       if (processed.has(tx.transaction_id)) continue;
 
-      // Treasury outgoing refund (scheduled tx executed) → mirror on Sepolia
-      const treasuryOut = tx.transfers.find(
+      // Treasury outgoing refund — only the scheduled execution (scheduled: true),
+      // not the ScheduleCreate tx which also has small fee outflows from treasury.
+      const treasuryOut = tx.scheduled && tx.transfers.find(
         t => t.account === TREASURY_ID.toString() && t.amount < 0
       );
       if (treasuryOut) {

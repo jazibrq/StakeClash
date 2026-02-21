@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Timer } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 // Scheduler backend URL — override with VITE_SCHEDULER_URL in .env if needed
 const SCHEDULER_URL = import.meta.env.VITE_SCHEDULER_URL ?? 'http://localhost:3001';
@@ -13,6 +14,9 @@ function formatSeconds(s: number): string {
 export const SeasonCountdown = () => {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [active, setActive] = useState(false);
+  const hadActiveSeasonRef = useRef(false);
+  const lastSeenExpiryRef = useRef<number | null>(null);
+  const lastNotifiedExpiryRef = useRef<number | null>(null);
 
   // Poll /season-status from the scheduler backend every second while active,
   // every 5 s while idle (to detect a newly started season quickly).
@@ -23,7 +27,25 @@ export const SeasonCountdown = () => {
       try {
         const res = await fetch(`${SCHEDULER_URL}/season-status`);
         if (!res.ok) return;
-        const data: { active: boolean; secondsLeft: number } = await res.json();
+        const data: { active: boolean; secondsLeft: number; expiresAt: number | null } = await res.json();
+
+        // Trigger one completion popup when a live season transitions to inactive.
+        if (data.active && typeof data.expiresAt === 'number') {
+          hadActiveSeasonRef.current = true;
+          lastSeenExpiryRef.current = data.expiresAt;
+        } else if (!data.active && hadActiveSeasonRef.current && lastSeenExpiryRef.current !== null) {
+          if (lastNotifiedExpiryRef.current !== lastSeenExpiryRef.current) {
+            toast({
+              title: 'payments complete!',
+              duration: 5000,
+              className:
+                'rounded-none border-white/80 bg-emerald-500/70 text-white font-mono uppercase tracking-wider backdrop-blur-sm shadow-[0_0_0_1px_rgba(255,255,255,0.45)]',
+            });
+            lastNotifiedExpiryRef.current = lastSeenExpiryRef.current;
+          }
+          hadActiveSeasonRef.current = false;
+        }
+
         setActive(data.active);
         setSecondsLeft(data.active ? Math.max(0, data.secondsLeft) : null);
       } catch {
