@@ -102,6 +102,53 @@
     }
 
     .empty { color: #666; font-style: italic; }
+
+    /* ── Schedule Terminal ── */
+    .terminal-panel { max-width: 800px; }
+    .term-output {
+      background: #080810;
+      border: 1px solid #2e2e3a;
+      border-radius: 4px 4px 0 0;
+      padding: 0.8rem 1rem;
+      min-height: 260px;
+      max-height: 420px;
+      overflow-y: auto;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      color: #c8ffc8;
+    }
+    .term-input-row {
+      display: flex;
+      align-items: center;
+      background: #080810;
+      border: 1px solid #2e2e3a;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      padding: 0.45rem 0.8rem;
+    }
+    .term-prompt { color: #f0c040; margin-right: 0.5rem; white-space: nowrap; }
+    .term-input-row input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: inherit;
+      font-size: 0.85rem;
+      color: #e8e8e8;
+      caret-color: #f0c040;
+    }
+    .term-line-cmd  { color: #f0c040; }
+    .term-line-ok   { color: #a8e6a8; }
+    .term-line-err  { color: #f08080; }
+    .term-line-info { color: #8ab4f8; }
+    .term-line-dim  { color: #666; }
+    .state-PENDING  { color: #f0c040; }
+    .state-EXECUTED { color: #a8e6a8; }
+    .state-DELETED  { color: #f08080; }
+    .state-TIMEOUT  { color: #aaa; }
+    .state-error    { color: #f08080; }
+    .watch-spinner  { display:inline-block; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -122,6 +169,20 @@
   <div class="panel">
     <h2>Season Log</h2>
     <pre id="log" class="log-output"><span class="empty">No activity yet.</span></pre>
+  </div>
+
+  <!-- Schedule Terminal -->
+  <div class="panel terminal-panel">
+    <h2>Schedule Terminal</h2>
+    <div class="term-output" id="termOutput">
+      <div class="term-line-info">StakeClash Schedule CLI — type <b>help</b> for commands.</div>
+    </div>
+    <div class="term-input-row">
+      <span class="term-prompt">hiero $</span>
+      <input type="text" id="termInput" autocomplete="off" spellcheck="false"
+             placeholder="schedule:status 0.0.XXXXX"
+             onkeydown="termKeydown(event)" />
+    </div>
   </div>
 
   <!-- Operational events panel -->
@@ -240,6 +301,186 @@
     // Poll every 2 s
     setInterval(loadAdminLogs, 2_000);
     setInterval(loadLogs, 2_000);
+
+    // ── Schedule Terminal ───────────────────────────────────────────────────
+
+    const termHistory = [];
+    let termHistIdx = -1;
+    let watchTimer  = null;
+
+    function termKeydown(e) {
+      const inp = document.getElementById("termInput");
+      if (e.key === "Enter") {
+        const cmd = inp.value.trim();
+        inp.value = "";
+        termHistIdx = -1;
+        if (cmd) { termHistory.unshift(cmd); runTermCommand(cmd); }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (termHistIdx < termHistory.length - 1) inp.value = termHistory[++termHistIdx];
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (termHistIdx > 0) inp.value = termHistory[--termHistIdx];
+        else { termHistIdx = -1; inp.value = ""; }
+      }
+    }
+
+    function termPrint(text, cls = "") {
+      const out  = document.getElementById("termOutput");
+      const line = document.createElement("div");
+      if (cls) line.className = cls;
+      line.innerHTML = text;
+      out.appendChild(line);
+      out.scrollTop  = out.scrollHeight;
+    }
+
+    function termCmd(cmd) { termPrint(`<span class="term-line-dim">hiero $</span> ${cmd}`, "term-line-cmd"); }
+
+    // Parse --flag value or --flag=value from a command string
+    function parseArgs(tokens) {
+      const args = {};
+      let i = 0;
+      while (i < tokens.length) {
+        if (tokens[i].startsWith("--")) {
+          const key = tokens[i].slice(2);
+          const next = tokens[i + 1];
+          if (next && !next.startsWith("--")) { args[key] = next; i += 2; }
+          else { args[key] = true; i++; }
+        } else { i++; }
+      }
+      return args;
+    }
+
+    async function runTermCommand(raw) {
+      termCmd(raw);
+      const tokens = raw.match(/(?:[^\s"]+|"[^"]*")+/g)?.map(t => t.replace(/^"|"$/g, "")) ?? [];
+      const cmd    = tokens[0]?.toLowerCase();
+
+      if (!cmd) return;
+
+      if (cmd === "clear") { document.getElementById("termOutput").innerHTML = ""; return; }
+
+      if (cmd === "help") {
+        termPrint([
+          '<span class="term-line-info">Available commands:</span>',
+          '  <b>schedule:status</b> &lt;0.0.ID&gt;',
+          '     → Check current state of a schedule (PENDING / EXECUTED / DELETED)',
+          '  <b>schedule:watch</b> &lt;0.0.ID&gt; [--timeout 60] [--poll 3]',
+          '     → Poll until terminal state (live updates every poll seconds)',
+          '  <b>schedule:create</b> --to &lt;0.0.ID&gt; --amount &lt;tinybars&gt; [--memo "text"] [--expiry 3600]',
+          '     → Create a new scheduled HBAR transfer',
+          '  <b>clear</b>   — clear the terminal',
+          '  <b>help</b>    — show this help',
+        ].join("<br>"));
+        return;
+      }
+
+      if (cmd === "schedule:status") {
+        const id = tokens[1];
+        if (!id) { termPrint("Usage: schedule:status &lt;0.0.ID&gt;", "term-line-err"); return; }
+        termPrint(`Fetching status for <b>${id}</b> …`, "term-line-info");
+        try {
+          const res  = await fetch(`${API}/schedule/status?id=${encodeURIComponent(id)}`);
+          const data = await res.json();
+          if (data.ok) printStatusData(data);
+          else termPrint(`ERROR: ${data.error}`, "term-line-err");
+        } catch (e) { termPrint(`FETCH ERROR: ${e.message}`, "term-line-err"); }
+        return;
+      }
+
+      if (cmd === "schedule:watch") {
+        const id    = tokens[1];
+        if (!id) { termPrint("Usage: schedule:watch &lt;0.0.ID&gt; [--timeout 60] [--poll 3]", "term-line-err"); return; }
+        const args  = parseArgs(tokens.slice(2));
+        const poll  = Math.max(Number(args["poll"]    ?? 3), 1);
+        const tout  = Math.min(Number(args["timeout"] ?? 60), 120);
+        if (watchTimer) { clearInterval(watchTimer); watchTimer = null; termPrint("Previous watch stopped.", "term-line-dim"); }
+        let elapsed = 0;
+        termPrint(`<span class="watch-spinner">⟳</span> Watching <b>${id}</b> … (poll every ${poll}s, timeout ${tout}s) — type <b>stop</b> to abort`, "term-line-info");
+        watchTimer = setInterval(async () => {
+          elapsed += poll;
+          if (elapsed > tout) {
+            clearInterval(watchTimer); watchTimer = null;
+            termPrint(`Watch TIMEOUT after ${elapsed}s.`, "term-line-info");
+            return;
+          }
+          try {
+            const res  = await fetch(`${API}/schedule/status?id=${encodeURIComponent(id)}`);
+            const data = await res.json();
+            if (!data.ok) { clearInterval(watchTimer); watchTimer = null; termPrint(`ERROR: ${data.error}`, "term-line-err"); return; }
+            termPrint(`[${elapsed}s] State: <span class="state-${data.state}">${data.state}</span>`, "term-line-ok");
+            if (data.state === "EXECUTED" || data.state === "DELETED") {
+              clearInterval(watchTimer); watchTimer = null;
+              termPrint(`✓ Terminal state reached: <span class="state-${data.state}">${data.state}</span>`, "term-line-ok");
+              printStatusData(data);
+            }
+          } catch (e) { termPrint(`[${elapsed}s] poll error: ${e.message}`, "term-line-dim"); }
+        }, poll * 1000);
+        return;
+      }
+
+      if (cmd === "stop") {
+        if (watchTimer) { clearInterval(watchTimer); watchTimer = null; termPrint("Watch stopped.", "term-line-dim"); }
+        else termPrint("No active watch.", "term-line-dim");
+        return;
+      }
+
+      if (cmd === "schedule:create") {
+        const args = parseArgs(tokens.slice(1));
+        if (!args["to"] || !args["amount"]) {
+          termPrint("Usage: schedule:create --to 0.0.ID --amount &lt;tinybars&gt; [--memo \"text\"] [--expiry 3600]", "term-line-err");
+          return;
+        }
+        termPrint(`Creating scheduled transfer → <b>${args["to"]}</b> (${args["amount"]} tinybars) …`, "term-line-info");
+        try {
+          const res  = await fetch(`${API}/schedule/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to:            args["to"],
+              amount:        args["amount"],
+              memo:          args["memo"] ?? undefined,
+              expirySeconds: args["expiry"] ? Number(args["expiry"]) : undefined,
+            }),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            termPrint(`✓ Schedule created!`, "term-line-ok");
+            termPrint(`  Schedule ID  : <b>${data.scheduleId}</b>`, "term-line-ok");
+            termPrint(`  Transaction  : ${data.transactionId}`, "term-line-ok");
+            termPrint(`  Expiry       : ${data.expirySeconds}s`, "term-line-ok");
+            termPrint(`  Network      : ${data.network}`, "term-line-ok");
+            if (data.memo) termPrint(`  Memo         : ${data.memo}`, "term-line-ok");
+            termPrint(`  → Run: schedule:watch ${data.scheduleId}`, "term-line-dim");
+          } else {
+            termPrint(`ERROR: ${data.error}`, "term-line-err");
+          }
+        } catch (e) { termPrint(`FETCH ERROR: ${e.message}`, "term-line-err"); }
+        return;
+      }
+
+      termPrint(`Unknown command: <b>${cmd}</b> — type <b>help</b> for commands.`, "term-line-err");
+    }
+
+    function printStatusData(d) {
+      termPrint([
+        `  Schedule ID : <b>${d.scheduleId}</b>`,
+        `  State       : <span class="state-${d.state}">${d.state}</span>`,
+        `  Executed    : ${d.executed}`,
+        `  Deleted     : ${d.deleted}`,
+        d.createdAt ? `  Created     : ${d.createdAt}` : null,
+        d.expiresAt ? `  Expires     : ${d.expiresAt}` : null,
+        d.memo      ? `  Memo        : ${d.memo}`      : null,
+        `  Network     : ${d.network}`,
+      ].filter(Boolean).join("<br>"), "term-line-ok");
+    }
+
+    // Focus terminal input on click anywhere in panel
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelector(".terminal-panel")?.addEventListener("click", () =>
+        document.getElementById("termInput").focus()
+      );
+    });
   </script>
 
 </body>

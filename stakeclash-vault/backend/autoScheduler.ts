@@ -12,11 +12,11 @@ import {
   Client,
   AccountId,
   PrivateKey,
-  Hbar,
-  TransferTransaction,
-  ScheduleCreateTransaction,
-  Timestamp,
 } from "@hashgraph/sdk";
+import { createSchedule }    from "../../src/plugins/schedule/commands/create/handler";
+import { getScheduleStatus } from "../../src/plugins/schedule/commands/status/handler";
+import { watchSchedule }     from "../../src/plugins/schedule/commands/watch/handler";
+import { buildHandlerArgs }  from "../../src/plugins/schedule/adapter";
 
 // ── Env guards ─────────────────────────────────────────────────────────────
 if (!process.env.OPERATOR_ID)         throw new Error("Missing OPERATOR_ID in .env");
@@ -157,62 +157,41 @@ function storeDeposit(depositorId: AccountId, tinybars: number): string {
 }
 
 /**
- * Schedules a single refund via Hedera Schedule Service.
+ * Schedules a single refund via the schedule plugin (create command).
  *
- * Flow:
- *  1. Build inner TransferTransaction (do NOT freeze or sign manually —
- *     ScheduleCreateTransaction owns the inner tx lifecycle entirely).
- *  2. Wrap in ScheduleCreateTransaction with:
- *       - setWaitForExpiry(true)  → executes at expiry regardless of signature state
- *       - setExpirationTime(...)  → 5 minutes from now
- *  3. execute(client) submits the ScheduleCreateTransaction.
- *     The Hedera SDK automatically signs the OUTER ScheduleCreateTransaction
- *     with the operator key. Crucially, because the operator (OPERATOR_ID) is
- *     also the treasury account that signs the INNER TransferTransaction,
- *     the SDK also attaches that signature to the schedule's initial payload
- *     in the same gRPC call.
- *
- * Why ScheduleSignTransaction is NOT called here:
- *   The inner TransferTransaction debits TREASURY_ID, so the treasury key is
- *   the only required signer. That key IS the operator key. The SDK bundles
- *   the operator signature into ScheduleCreateTransaction automatically —
- *   by the time the call completes, all required signatures are already
- *   on-chain. Calling ScheduleSignTransaction after this would attempt to
- *   add the same key again, which Hedera rejects with NO_NEW_VALID_SIGNATURES.
- *
- *   TL;DR: operator == treasury → single signer → already signed at creation.
- *   Do not call ScheduleSignTransaction.
+ * Uses buildHandlerArgs to adapt the env-var Hedera Client into the
+ * CommandHandlerArgs interface the plugin handler expects — same interface
+ * as the Hiero CLI core, so this code is identical to what runs in that CLI.
  */
 async function scheduleOneRefund(depositKey: string, deposit: Deposit): Promise<void> {
   const { userId, amountTinybars } = deposit;
 
-  // Step 1 — Inner transfer: treasury → depositor.
-  // Do NOT call .freeze() or .sign() here. ScheduleCreateTransaction handles
-  // the inner tx — manually freezing it will make it immutable and break signing.
-  const innerTx = new TransferTransaction()
-    .addHbarTransfer(TREASURY_ID, Hbar.fromTinybars(-amountTinybars))
-    .addHbarTransfer(userId,      Hbar.fromTinybars(amountTinybars));
+  const pluginResult = await createSchedule(
+    buildHandlerArgs(
+      client,
+      TREASURY_ID,
+      NETWORK,
+      MIRROR_BASE,
+      {
+        to:               userId.toString(),
+        amount:           amountTinybars.toString(),
+        'expiry-seconds': SCHEDULE_EXPIRY_SECONDS,
+      },
+    ),
+  );
 
-  // Step 2 & 3 — Create the schedule.
-  // The SDK signs the outer ScheduleCreateTransaction with the operator key AND
-  // simultaneously provides the operator key as a signature for the inner tx.
-  // No further signing step is required.
-  const expiryUnixSec = Math.floor(Date.now() / 1000) + SCHEDULE_EXPIRY_SECONDS;
+  if (pluginResult.status === 'failure') {
+    throw new Error(pluginResult.errorMessage ?? 'schedule:create plugin failed');
+  }
 
-  const scheduleCreateResponse = await new ScheduleCreateTransaction()
-    .setScheduledTransaction(innerTx)
-    .setWaitForExpiry(true)                              // hold until expiry even though fully signed
-    .setExpirationTime(new Timestamp(expiryUnixSec, 0)) // 5 minutes from now
-    .execute(client);
+  const { scheduleId } = JSON.parse(pluginResult.outputJson!) as { scheduleId: string };
 
-  const createReceipt = await scheduleCreateResponse.getReceipt(client);
-  const scheduleId    = createReceipt.scheduleId;
-  console.log(`[SCHEDULE] Schedule ID: ${scheduleId?.toString()}`);
+  console.log(`[SCHEDULE] Schedule ID: ${scheduleId}`);
   console.log(
     `[SCHEDULE] Created ${scheduleId} for deposit ${depositKey}. ` +
     `Refund of ${(amountTinybars / 1e8).toFixed(4)} HBAR to ${userId} ` +
     `will auto-execute at expiry (~1 min). No ScheduleSignTransaction needed ` +
-    `(operator == treasury, signature already included at creation).`
+    `(operator == treasury, signature already included at creation).`,
   );
 }
 
@@ -433,6 +412,91 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/admin/logs") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ logs: [...adminLogs] }));
+    return;
+  }
+
+  // POST /schedule/create — create a scheduled HBAR transfer
+  if (req.method === "POST" && url.pathname === "/schedule/create") {
+    const body: Buffer[] = [];
+    req.on("data", chunk => body.push(chunk));
+    req.on("end", async () => {
+      try {
+        const { to, amount, memo, expirySeconds } = JSON.parse(Buffer.concat(body).toString());
+        const result = await createSchedule(
+          buildHandlerArgs(client, OPERATOR_ID, NETWORK, MIRROR_BASE, {
+            to,
+            amount: String(amount),
+            "expiry-seconds": Number(expirySeconds ?? SCHEDULE_EXPIRY_SECONDS),
+            ...(memo ? { memo } : {}),
+          })
+        );
+        res.writeHead(result.status === "success" ? 200 : 400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(
+          result.status === "success"
+            ? { ok: true,  ...JSON.parse(result.outputJson!) }
+            : { ok: false, error: result.errorMessage }
+        ));
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: (err as Error).message }));
+      }
+    });
+    return;
+  }
+
+  // GET /schedule/status?id=0.0.XXXXX — query mirror node for schedule state
+  if (req.method === "GET" && url.pathname === "/schedule/status") {
+    const scheduleId = url.searchParams.get("id");
+    if (!scheduleId) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing ?id= query parameter" }));
+      return;
+    }
+    try {
+      const result = await getScheduleStatus(
+        buildHandlerArgs(client, OPERATOR_ID, NETWORK, MIRROR_BASE, { "schedule-id": scheduleId })
+      );
+      res.writeHead(result.status === "success" ? 200 : 400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(
+        result.status === "success"
+          ? { ok: true,  ...JSON.parse(result.outputJson!) }
+          : { ok: false, error: result.errorMessage }
+      ));
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: (err as Error).message }));
+    }
+    return;
+  }
+
+  // GET /schedule/watch?id=0.0.XXXXX&timeout=60&poll=3 — poll until terminal state
+  if (req.method === "GET" && url.pathname === "/schedule/watch") {
+    const scheduleId = url.searchParams.get("id");
+    if (!scheduleId) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing ?id= query parameter" }));
+      return;
+    }
+    const timeout = Math.min(Number(url.searchParams.get("timeout") ?? 60), 120);
+    const poll    = Math.max(Number(url.searchParams.get("poll")    ??  3),   1);
+    try {
+      const result = await watchSchedule(
+        buildHandlerArgs(client, OPERATOR_ID, NETWORK, MIRROR_BASE, {
+          "schedule-id":   scheduleId,
+          timeout,
+          "poll-interval": poll,
+        })
+      );
+      res.writeHead(result.status === "success" ? 200 : 400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(
+        result.status === "success"
+          ? { ok: true,  ...JSON.parse(result.outputJson!) }
+          : { ok: false, error: result.errorMessage }
+      ));
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: (err as Error).message }));
+    }
     return;
   }
 
