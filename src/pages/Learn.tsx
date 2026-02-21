@@ -282,14 +282,6 @@ const KeySprite = ({
 /* Manual tweak point for Ultimate sprite position in Controls section */
 const ULTIMATE_SPRITE_OFFSET = { x: 3, y: 28 };
 
-const DiffCard = ({
-  title, body,
-}: { title: string; body: string }) => (
-  <div className="card-surface rounded-xl p-5 border-l-2 border-primary">
-    <p className="font-semibold text-foreground text-sm mb-2">{title}</p>
-    <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
-  </div>
-);
 /* ─── page ──────────────────────────────────────────────── */
 
 const Learn = () => (
@@ -669,121 +661,37 @@ const Learn = () => (
         <section id="backend">
           <SectionLabel>Technical</SectionLabel>
           <SectionTitle>How the Backend Works</SectionTitle>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
-            Behind the scenes, StakeClash is powered by deterministic blockchain infrastructure — not manual admin actions.
-          </p>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            Everything is transparent and verifiable on-chain.
-          </p>
           <div className="space-y-4">
-            <div className="card-surface rounded-xl p-5 flex gap-4">
-              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
-              <div>
-                <p className="font-semibold text-foreground text-sm mb-1">On-Chain Deposit Tracking</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">All deposits are recorded directly on their respective blockchains.</p>
-                <ul className="space-y-1">
-                  {[
-                    'HBAR deposits are tracked via Hedera mirror nodes.',
-                    'ETH and USDC deposits are standard on-chain transfers to the treasury wallet.',
-                    'There are no off-chain ledgers and no internal balance manipulation.',
-                    'All asset movements can be verified publicly.',
-                  ].map(item => (
-                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <span className="text-primary mt-0.5">—</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+            {[
+              {
+                title: 'On-Chain Deposit Tracking',
+                body: 'HBAR deposits tracked via Hedera mirror nodes. ETH and USDC are on-chain transfers to the treasury wallet. All movements verifiable publicly — no off-chain ledgers.',
+              },
+              {
+                title: 'External Yield Generation',
+                body: 'Assets are routed to audited yield protocols (liquid staking, lending pools). StakeClash does not create yield — it is generated externally and reflected in the game layer.',
+              },
+              {
+                title: 'Network-Level Season Timing (Hedera Schedule Service)',
+                body: 'Season timing uses Hedera\'s native Schedule Service — no cron jobs. On start, a time-locked transaction is scheduled. At expiry, Hedera executes it automatically, even if the backend is offline.',
+              },
+              {
+                title: 'Mirror-Based Settlement Trigger',
+                body: 'The backend listens to Hedera mirror nodes. When the scheduled transaction executes, ETH and USDC refunds are triggered automatically — event-driven, not manually initiated.',
+              },
+              {
+                title: 'Automatic Cross-Chain Settlement',
+                body: 'Hedera refund executes → mirror node confirms → backend detects → ETH and USDC refunds sent → season concludes. No admin intervention required.',
+              },
+            ].map(({ title, body }) => (
+              <div key={title} className="card-surface rounded-xl p-5 flex gap-4">
+                <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+                <div>
+                  <p className="font-semibold text-foreground text-sm mb-1">{title}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+                </div>
               </div>
-            </div>
-
-            <div className="card-surface rounded-xl p-5 flex gap-4">
-              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
-              <div>
-                <p className="font-semibold text-foreground text-sm mb-1">External Yield Generation</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Deposited assets are routed to audited yield-generating protocols appropriate for that asset class (liquid staking, lending pools, etc.).
-                  StakeClash does not create yield artificially and does not control market returns. Yield is generated externally and reflected proportionally in the game layer.
-                </p>
-              </div>
-            </div>
-
-            <div className="card-surface rounded-xl p-5 flex gap-4">
-              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
-              <div>
-                <p className="font-semibold text-foreground text-sm mb-1">Network-Level Season Timing (Hedera Schedule Service)</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">Season timing is enforced using Hedera's native Schedule Service. No backend timers or cron jobs are used.</p>
-                <p className="text-xs text-muted-foreground mb-1">When a season begins:</p>
-                <ul className="space-y-1 mb-2">
-                  {[
-                    'A time-locked transaction is scheduled on Hedera.',
-                    'The network enforces the expiration.',
-                  ].map(item => (
-                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <span className="text-primary mt-0.5">—</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground mb-1">At the scheduled expiry:</p>
-                <ul className="space-y-1 mb-2">
-                  {[
-                    'Hedera automatically executes the settlement transaction.',
-                    'Execution is guaranteed by the network itself, even if the backend is offline.',
-                  ].map(item => (
-                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <span className="text-primary mt-0.5">—</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">This makes season timing deterministic and tamper-resistant.</p>
-              </div>
-            </div>
-
-            <div className="card-surface rounded-xl p-5 flex gap-4">
-              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
-              <div>
-                <p className="font-semibold text-foreground text-sm mb-1">Mirror-Based Settlement Trigger</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">The backend listens to Hedera mirror nodes to detect when the scheduled transaction executes. When execution is confirmed:</p>
-                <ul className="space-y-1 mb-2">
-                  {[
-                    'The backend triggers corresponding ETH and USDC refunds from the treasury wallet.',
-                    'Cross-chain settlement is event-driven — not manually initiated.',
-                    'Admin logs update in real time.',
-                  ].map(item => (
-                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <span className="text-primary mt-0.5">—</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">Hedera acts as the timing authority. Ethereum acts as the settlement mirror.</p>
-              </div>
-            </div>
-
-            <div className="card-surface rounded-xl p-5 flex gap-4">
-              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
-              <div>
-                <p className="font-semibold text-foreground text-sm mb-1">Automatic Cross-Chain Settlement</p>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-2">Settlement follows a simple flow:</p>
-                <ul className="space-y-1 mb-2">
-                  {[
-                    'Hedera scheduled refund executes.',
-                    'Mirror node confirms the outgoing transfer.',
-                    'Backend detects the event.',
-                    'ETH and USDC refunds are sent from the treasury wallet.',
-                    'The season concludes automatically.',
-                  ].map((item, i) => (
-                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <span className="text-primary mt-0.5 font-mono">{i + 1}.</span>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">No admin intervention is required.</p>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
