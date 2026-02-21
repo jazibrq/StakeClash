@@ -18,14 +18,25 @@ const queryClient = new QueryClient();
 const ghostMusic = new Audio("/audio/ghost.mp3");
 ghostMusic.loop = true;
 ghostMusic.volume = 0.4;
+ghostMusic.preload = "auto";
 
 const reckoningMusic = new Audio("/audio/reckoning.mp3");
 reckoningMusic.loop = true;
 reckoningMusic.volume = 0.5;
+reckoningMusic.preload = "auto";
 
 const RouteAudioManager = () => {
   const { pathname } = useLocation();
   const isClash = pathname.startsWith("/clash");
+
+  useEffect(() => {
+    try {
+      ghostMusic.load();
+    } catch (e) {}
+    try {
+      reckoningMusic.load();
+    } catch (e) {}
+  }, []);
 
   useEffect(() => {
     const active = isClash ? reckoningMusic : ghostMusic;
