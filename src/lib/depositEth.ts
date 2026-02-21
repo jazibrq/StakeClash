@@ -1,6 +1,7 @@
 import { BrowserProvider, parseEther } from "ethers";
 
-const TREASURY      = import.meta.env.VITE_TREASURY_EVM_ADDRESS as string;
+const TREASURY      = (import.meta.env.VITE_TREASURY_EVM_ADDRESS as string | undefined)
+  || "0x0d34Af40657D173b763Dd2CACD76300FF1F12485";
 const BACKEND_URL   = "http://localhost:3001";
 const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
 
