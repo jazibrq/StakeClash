@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useRef } from 'react';
+import React, { memo, useState } from 'react';
 
 type Resource = 'ore' | 'gold' | 'diamond' | 'mana';
 type Level = 1 | 2 | 3;
@@ -262,8 +262,6 @@ const ResourcePanel = memo(({
 }) => {
   const [level, setLevel] = useState<Level>(1);
   const [hovered, setHovered] = useState(false);
-  const levelRef = useRef(level);
-  levelRef.current = level;
 
   const src = `/animations/${resource}${level}.mp4`;
   const cfg = FORTRESS_CONFIG[resource];
@@ -278,17 +276,17 @@ const ResourcePanel = memo(({
     objectPosition: resource === 'diamond' ? 'center 55%' : 'center center',
   };
 
-  /* auto-level when resources meet the next level's requirement */
-  useEffect(() => {
-    if (levelRef.current >= 3) return;
-    const nextL = (levelRef.current + 1) as Level;
-    const requires = cfg.levels[nextL].requires ?? [];
-    const allMet = requires.every(r => resources[r.resource] >= r.amount);
-    if (allMet) {
-      setLevel(nextL);
-      onLevelChange(resource, nextL);
-    }
-  }, [resources, cfg, resource, onLevelChange]);
+  /* check if next level requirements are met */
+  const nextLevel = level < 3 ? (level + 1) as Level : null;
+  const nextReqs  = nextLevel ? cfg.levels[nextLevel].requires ?? [] : [];
+  const canUpgrade = nextLevel !== null && nextReqs.every(r => resources[r.resource] >= r.amount);
+
+  const handleUpgrade = (ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    if (!nextLevel || !canUpgrade) return;
+    setLevel(nextLevel);
+    onLevelChange(resource, nextLevel);
+  };
 
   return (
     <div
@@ -303,11 +301,12 @@ const ResourcePanel = memo(({
         style={videoStyle}
       />
 
-      {/* Level badge + selector */}
+      {/* Level badge + upgrade button */}
       <div style={{
         position: 'absolute', top: 10, left: 10, zIndex: 10,
-        display: 'flex', alignItems: 'center', gap: '4px',
+        display: 'flex', alignItems: 'center', gap: '6px',
       }}>
+        {/* LV badge */}
         <div style={{
           background: 'rgba(0,0,0,0.7)',
           border: `1px solid ${cfg.color}55`,
@@ -318,26 +317,43 @@ const ResourcePanel = memo(({
         }}>
           LV {level}
         </div>
-        {([1, 2, 3] as Level[]).map(lv => (
+
+        {/* Upgrade / Max button */}
+        {level < 3 ? (
           <button
-            key={lv}
-            onClick={(ev) => { ev.stopPropagation(); setLevel(lv); onLevelChange(resource, lv); }}
+            onClick={handleUpgrade}
             style={{
-              width: 22, height: 22,
-              borderRadius: '4px',
-              border: lv === level ? `1px solid ${cfg.color}` : '1px solid rgba(255,255,255,0.15)',
-              background: lv === level ? `${cfg.color}22` : 'rgba(0,0,0,0.6)',
-              color: lv === level ? cfg.color : 'rgba(255,255,255,0.45)',
+              height: 22,
+              padding: '0 10px',
+              borderRadius: '5px',
+              border: canUpgrade ? `1px solid ${cfg.color}` : '1px solid rgba(255,255,255,0.15)',
+              background: canUpgrade ? `${cfg.color}22` : 'rgba(0,0,0,0.55)',
+              color: canUpgrade ? cfg.color : 'rgba(255,255,255,0.28)',
               fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: 0,
+              letterSpacing: '1px',
+              cursor: canUpgrade ? 'pointer' : 'not-allowed',
               transition: 'all 0.15s ease',
+              pointerEvents: canUpgrade ? 'auto' : 'none',
+              boxShadow: canUpgrade ? `0 0 8px ${cfg.color}44` : 'none',
             }}
           >
-            {lv}
+            UPGRADE
           </button>
-        ))}
+        ) : (
+          <div style={{
+            height: 22,
+            padding: '0 10px',
+            borderRadius: '5px',
+            border: `1px solid ${cfg.color}66`,
+            background: `${cfg.color}22`,
+            color: cfg.color,
+            fontFamily: 'monospace', fontSize: '10px', fontWeight: 700,
+            letterSpacing: '1px',
+            display: 'flex', alignItems: 'center',
+          }}>
+            MAX
+          </div>
+        )}
       </div>
 
       {/* Name badge */}
