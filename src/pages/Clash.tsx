@@ -4,109 +4,11 @@ import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { Navigation } from '@/components/Navigation';
 import RaidGame from '@/components/RaidGame';
-<<<<<<< HEAD
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
 import wasdGif from '@/assets/Spritesheets/wasd-tutorial.gif';
-=======
-import wasdGif     from '@/assets/Spritesheets/wasd-tutorial.gif';
-import spaceKeyPng from '@/assets/Spritesheets/SPACE.png';
-import shiftKeyPng from '@/assets/Spritesheets/SHIFT.png';
-import fKeyPng     from '@/assets/Spritesheets/F.png';
-import xKeyPng     from '@/assets/Spritesheets/X.png';
->>>>>>> 7daf552b (Change frtonend)
 
 type Phase = 'search' | 'searching' | 'selecting' | 'playing';
-
-/* ── Pixel-art key image (static idle frame) ── */
-const KeyImage = ({
-  src, frameWidth, frameHeight, displayHeight,
-}: {
-  src: string; frameWidth: number; frameHeight: number; displayHeight: number;
-}) => {
-  const scale = displayHeight / frameHeight;
-  const dw    = Math.round(frameWidth * scale);
-  const bgW   = Math.round(frameWidth * scale * 2);
-
-  return (
-    <div style={{
-      width: dw, height: displayHeight, flexShrink: 0,
-      backgroundImage:    `url(${src})`,
-      backgroundSize:     `${bgW}px ${displayHeight}px`,
-      // frame 1 (dark/idle) = shift left by one frame width
-      backgroundPosition: `-${dw}px 0px`,
-      backgroundRepeat:   'no-repeat',
-      imageRendering:     'pixelated',
-    }} />
-  );
-};
-
-/* ── Shield: idle character + pulsing blue orb drawn on one canvas ── */
-const ShieldAnim = ({ size = 120 }: { size?: number }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef    = useRef(0);
-  const frameRef  = useRef(0);
-  const timerRef  = useRef(0);
-  const pulseRef  = useRef(0);
-  const imgRef    = useRef<HTMLImageElement | null>(null);
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, size, size);
-
-    // Idle character
-    const img = imgRef.current;
-    if (img && img.complete && img.naturalWidth > 0) {
-      ctx.drawImage(img, frameRef.current * 128, 0, 128, 128, 0, 0, size, size);
-    }
-
-    // Blue shield orb (matches game: fill #42a5f5 α0.38, stroke #90caf9 α0.7, shadow #1e88e5 blur22)
-    pulseRef.current += 0.03;
-    const p  = 0.5 + 0.5 * Math.sin(pulseRef.current);
-    const cx = size / 2;
-    const cy = size * 0.60;           // character torso sits ~60% down in the 128px frame
-    const r  = size * 0.27 + p * size * 0.03;
-
-    ctx.save();
-    ctx.shadowColor = '#1e88e5';
-    ctx.shadowBlur  = 22 + p * 8;
-    ctx.globalAlpha = 0.38 + p * 0.10;
-    ctx.fillStyle   = '#42a5f5';
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 0.7;
-    ctx.strokeStyle = '#90caf9';
-    ctx.lineWidth   = 2;
-    ctx.stroke();
-    ctx.restore();
-  }, [size]);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/heroes/Idle.png';
-    img.onload = () => { imgRef.current = img; draw(); };
-    imgRef.current = img;
-  }, [draw]);
-
-  useEffect(() => {
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = now - last; last = now;
-      timerRef.current += dt;
-      if (timerRef.current >= 130) { timerRef.current -= 130; frameRef.current = (frameRef.current + 1) % 6; }
-      draw();
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [draw]);
-
-  return (
-    <canvas ref={canvasRef} width={size} height={size}
-      style={{ display: 'block', width: size, height: size, imageRendering: 'pixelated' }} />
-  );
-};
 
 /* ── Animated sprite canvas ── */
 const AnimatedSprite = ({
@@ -339,137 +241,11 @@ const Clash = () => {
           overflowY: 'auto',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'flex-start',
-          paddingTop: '100px', paddingBottom: '60px',
-          paddingLeft: '32px', paddingRight: '32px',
+          paddingTop: '120px', paddingBottom: '60px',
           zIndex: 10,
-          gap: '28px',
+          gap: '56px',
         }}>
-
-          {/* ── How To Play card ── */}
-          <div style={{
-            width: '100%',
-            padding: '8px 20px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '14px',
-          }}>
-            {/* Title + red underline */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                fontFamily: "'Pixelify Sans', system-ui, sans-serif",
-                fontSize: '22px',
-                fontWeight: 700,
-                color: '#ffffff',
-                letterSpacing: '0.15em',
-                textTransform: 'uppercase',
-                textShadow: '0 0 24px rgba(239,68,68,0.50)',
-              }}>
-                How To Play
-              </div>
-              <div style={{
-                width: '80px', height: '2px',
-                background: 'linear-gradient(90deg, transparent, #ef4444, transparent)',
-              }} />
-            </div>
-
-            {/* Horizontal roadmap */}
-            <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '2px' }}>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
-                gap: '14px',
-                width: '100%',
-                minWidth: 'max-content',
-              }}>
-
-                {/* ── Step: Movement ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ transform: 'translateX(12px)' }}>
-                    <AnimatedSprite src="/heroes/Run.png" frames={8} frameWidth={128} frameHeight={128} frameDuration={100} size={96} />
-                  </div>
-                  {/* key row — flex-end aligns all key bottoms on the same line */}
-                  <div style={{ height: '58px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <img src={wasdGif} alt="WASD" style={{ height: '56px', imageRendering: 'pixelated' }} />
-                  </div>
-                  <div style={{ fontFamily: "'Pixelify Sans', system-ui, sans-serif", fontSize: '12px', color: 'rgba(255,255,255,0.80)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    Movement
-                  </div>
-                </div>
-
-                {/* connector */}
-                <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: '16px', flexShrink: 0, paddingBottom: '20px', fontFamily: 'monospace' }}>›</div>
-
-                {/* ── Step: Attack ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ transform: 'translateX(10px)' }}>
-                    <AnimatedSprite src="/heroes/Attack.png" frames={4} frameWidth={128} frameHeight={128} frameDuration={100} size={96} />
-                  </div>
-                  <div style={{ height: '58px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <KeyImage src={spaceKeyPng} frameWidth={67} frameHeight={16} displayHeight={56} />
-                  </div>
-                  <div style={{ fontFamily: "'Pixelify Sans', system-ui, sans-serif", fontSize: '12px', color: 'rgba(255,255,255,0.80)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    Attack
-                  </div>
-                </div>
-
-                {/* connector */}
-                <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: '16px', flexShrink: 0, paddingBottom: '20px', fontFamily: 'monospace' }}>›</div>
-
-                {/* ── Step: Dash ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ transform: 'translateX(0px)' }}>
-                    <AnimatedSprite src="/heroes/Run.png" frames={8} frameWidth={128} frameHeight={128} frameDuration={60} size={96} />
-                  </div>
-                  <div style={{ height: '58px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <KeyImage src={shiftKeyPng} frameWidth={44} frameHeight={16} displayHeight={56} />
-                  </div>
-                  <div style={{ fontFamily: "'Pixelify Sans', system-ui, sans-serif", fontSize: '12px', color: 'rgba(255,255,255,0.80)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    Dash
-                  </div>
-                </div>
-
-                {/* connector */}
-                <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: '16px', flexShrink: 0, paddingBottom: '20px', fontFamily: 'monospace' }}>›</div>
-
-                {/* ── Step: Shield ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ transform: 'translateX(10px)' }}>
-                    <ShieldAnim size={96} />
-                  </div>
-                  <div style={{ height: '58px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <KeyImage src={fKeyPng} frameWidth={17} frameHeight={16} displayHeight={56} />
-                  </div>
-                  <div style={{ fontFamily: "'Pixelify Sans', system-ui, sans-serif", fontSize: '12px', color: 'rgba(255,255,255,0.80)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    Shield
-                  </div>
-                </div>
-
-                {/* connector */}
-                <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: '16px', flexShrink: 0, paddingBottom: '20px', fontFamily: 'monospace' }}>›</div>
-
-                {/* ── Step: Bladestorm ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <video
-                    src="/videos/bladestorm.mp4"
-                    autoPlay loop muted playsInline
-                    style={{ width: 96, height: 96, objectFit: 'contain', display: 'block', mixBlendMode: 'screen' }}
-                  />
-                  <div style={{ height: '58px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                    <KeyImage src={xKeyPng} frameWidth={17} frameHeight={16} displayHeight={56} />
-                  </div>
-                  <div style={{ fontFamily: "'Pixelify Sans', system-ui, sans-serif", fontSize: '12px', color: 'rgba(255,255,255,0.80)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    Bladestorm
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* Search button — below the How To Play card */}
+          {/* Search button */}
           <button
             onClick={handleSearch}
             style={{
@@ -495,6 +271,85 @@ const Clash = () => {
             SEARCH FOR CLASH
           </button>
 
+          {/* ── Tutorial ── */}
+          <div style={{
+            width: '100%', maxWidth: '680px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: '32px',
+          }}>
+            {/* Title — matches nav: Pixelify Sans, white, uppercase, tracked */}
+            <div style={{
+              fontFamily: "'Pixelify Sans', system-ui, sans-serif",
+              fontSize: '28px',
+              fontWeight: 700,
+              color: '#ffffff',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              textShadow: '0 0 30px rgba(239,68,68,0.55)',
+            }}>
+              Tutorial
+            </div>
+
+            {/* Divider */}
+            <div style={{
+              width: '280px', height: '1px',
+              background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.6), transparent)',
+            }} />
+
+            {/* Controls grid */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '28px',
+              width: '100%',
+              padding: '0 16px',
+              boxSizing: 'border-box',
+            }}>
+
+              {/* Movement row */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(0,0,0,0.45)',
+                border: '1px solid rgba(239,68,68,0.22)',
+                borderRadius: '14px',
+                padding: '20px 28px',
+                gap: '24px',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontFamily: "'Pixelify Sans', system-ui, sans-serif",
+                    fontSize: '16px',
+                    color: '#ffffff',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    marginBottom: '6px',
+                  }}>
+                    Movement
+                  </div>
+                  <div style={{
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    color: 'rgba(255,255,255,0.50)',
+                    letterSpacing: '0.06em',
+                  }}>
+                    Move your character around the arena
+                  </div>
+                </div>
+                <img
+                  src={wasdGif}
+                  alt="WASD movement keys"
+                  style={{
+                    height: '100px',
+                    imageRendering: 'pixelated',
+                    flexShrink: 0,
+                  }}
+                />
+              </div>
+
+            </div>
+          </div>
         </div>
       )}
 
