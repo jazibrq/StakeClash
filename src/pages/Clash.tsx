@@ -128,6 +128,7 @@ const RANDOM_OPPONENTS = [
 
 const Clash = () => {
   const [phase, setPhase] = useState<Phase>('search');
+  const [searchProgress, setSearchProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const wallet = useWalletContext();
@@ -150,9 +151,31 @@ const Clash = () => {
 
   const handleSearch = useCallback(() => {
     setPhase('searching');
+    setSearchProgress(0);
     const delay = 1200 + Math.random() * 800; // 1.2–2s
     setTimeout(() => setPhase('selecting'), delay);
   }, []);
+
+  useEffect(() => {
+    if (phase !== 'searching') {
+      if (phase === 'selecting' || phase === 'playing') setSearchProgress(100);
+      return;
+    }
+    setSearchProgress(0);
+    const start = performance.now();
+    const duration = 1800; // slightly longer than min delay so it rarely hits 100 early
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(elapsed / duration, 1);
+      // ease-out curve that plateaus around 90% so it never looks complete prematurely
+      const eased = 1 - Math.pow(1 - t, 2.5);
+      setSearchProgress(Math.min(Math.round(eased * 90), 90));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
 
   const handlePlay = useCallback(() => {
     setPhase('playing');
@@ -207,25 +230,33 @@ const Clash = () => {
           }}>
             FINDING MATCH
           </div>
-          {/* Animated dots */}
-          <div style={{
-            display: 'flex', gap: '8px',
-          }}>
-            {[0, 1, 2].map(i => (
-              <div key={i} style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: '#ef4444',
-                animation: `clash-pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+          {/* Progress bar */}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{
+              width: '100%', height: 6, borderRadius: 99,
+              background: 'rgba(239,68,68,0.18)',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${searchProgress}%`,
+                borderRadius: 99,
+                background: 'linear-gradient(90deg, #ef4444, #f97316)',
+                boxShadow: '0 0 10px rgba(239,68,68,0.6)',
+                transition: 'width 0.25s ease-out',
               }} />
-            ))}
+            </div>
+            <div style={{
+              fontFamily: 'monospace', fontSize: '11px',
+              letterSpacing: '2px', color: 'rgba(239,68,68,0.8)',
+              textAlign: 'right',
+            }}>
+              {searchProgress}%
+            </div>
           </div>
           <style>{`
             @keyframes clash-spin {
               to { transform: rotate(360deg); }
-            }
-            @keyframes clash-pulse {
-              0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
-              40% { opacity: 1; transform: scale(1.2); }
             }
           `}</style>
           </div>
