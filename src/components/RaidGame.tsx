@@ -366,9 +366,13 @@ const VictoryRewards: React.FC = () => {
 
 /* ─── component ─────────────────────────────────────────────── */
 
-interface Props { onReturn: () => void; autoStart?: boolean; }
+interface Props {
+  onReturn: () => void;
+  autoStart?: boolean;
+  onMatchEnd?: (result: 'Won' | 'Lost', resources: { ore: number; gold: number; diamond: number; mana: number }) => void;
+}
 
-const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
+const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) => {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const rootRef    = useRef<HTMLDivElement>(null);
   const gsRef      = useRef<GS | null>(null);
@@ -1278,6 +1282,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
               if (p.hp > 0) transitionState(p, 'idle');
             } else if (p.state === 'dead') {
               gs.running = false;
+              onMatchEnd?.('Lost', { ore: 0, gold: 0, diamond: 0, mana: 0 });
               setResult('defeat'); return;
             }
           }
@@ -1670,6 +1675,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       /* ── victory: kill all enemies (after boss has spawned) ── */
       if (gs.bossSpawned && gs.enemies.length === 0) {
         gs.running = false;
+        onMatchEnd?.('Won', { ore: 24, gold: 12, diamond: 4, mana: 8 });
         setResult('victory');
         return;
       }

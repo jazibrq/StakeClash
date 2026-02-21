@@ -18,12 +18,13 @@ export interface VaultTx {
 }
 
 export interface MatchRecord {
-  id:       string;
-  date:     string;
-  opponent: string;
-  size:     number;
-  result:   'Won' | 'Lost';
-  awards:   string;      // e.g. "+0.45" or "-0.00"
+  id:        string;
+  date:      string;
+  opponent:  string;
+  size:      number;
+  result:    'Won' | 'Lost';
+  awards:    string;      // e.g. "+0.45" or "-0.00"
+  resources: { ore: number; gold: number; diamond: number; mana: number };
 }
 
 export interface PlayerData {
@@ -31,6 +32,24 @@ export interface PlayerData {
   vaultActivity:  VaultTx[];
   matchHistory:   MatchRecord[];
 }
+
+const DUMMY_MATCHES: MatchRecord[] = [
+  {
+    id: 'dummy_1', date: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    opponent: 'ShadowBlade99', size: 2, result: 'Won', awards: '+0.32',
+    resources: { ore: 24, gold: 12, diamond: 4, mana: 8 },
+  },
+  {
+    id: 'dummy_2', date: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    opponent: 'CryptoKnight', size: 2, result: 'Lost', awards: '-0.00',
+    resources: { ore: 0, gold: 0, diamond: 0, mana: 0 },
+  },
+  {
+    id: 'dummy_3', date: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    opponent: 'VaultHunter', size: 4, result: 'Won', awards: '+0.48',
+    resources: { ore: 24, gold: 12, diamond: 4, mana: 8 },
+  },
+];
 
 const EMPTY_DATA: PlayerData = {
   vaultBalances: { ETH: 0, USDC: 0, SOL: 0, HBAR: 0 },
@@ -49,15 +68,17 @@ function storageKey(address: string): string {
 function loadPlayerData(address: string): PlayerData {
   try {
     const raw = localStorage.getItem(storageKey(address));
-    if (!raw) return { ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances } };
+    if (!raw) return { ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances }, matchHistory: DUMMY_MATCHES };
     const parsed = JSON.parse(raw);
     return {
       vaultBalances: { ...EMPTY_DATA.vaultBalances, ...parsed.vaultBalances },
       vaultActivity: Array.isArray(parsed.vaultActivity) ? parsed.vaultActivity : [],
-      matchHistory:  Array.isArray(parsed.matchHistory)  ? parsed.matchHistory  : [],
+      matchHistory:  Array.isArray(parsed.matchHistory) && parsed.matchHistory.length > 0
+        ? parsed.matchHistory
+        : DUMMY_MATCHES,
     };
   } catch {
-    return { ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances } };
+    return { ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances }, matchHistory: DUMMY_MATCHES };
   }
 }
 
@@ -79,7 +100,7 @@ export function usePlayerData(walletAddress: string | null) {
   /* Load data when wallet changes */
   useEffect(() => {
     if (!walletAddress) {
-      setData({ ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances } });
+      setData({ ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances }, matchHistory: DUMMY_MATCHES });
       return;
     }
     setData(loadPlayerData(walletAddress));

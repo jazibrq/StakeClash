@@ -4,6 +4,8 @@ import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { Navigation } from '@/components/Navigation';
 import RaidGame from '@/components/RaidGame';
+import { useWalletContext } from '@/contexts/WalletContext';
+import { usePlayerData } from '@/hooks/usePlayerData';
 
 type Phase = 'search' | 'selecting' | 'playing';
 
@@ -118,10 +120,34 @@ const COLUMNS = [
   },
 ] as const;
 
+const RANDOM_OPPONENTS = [
+  'ShadowBlade99', 'CryptoKnight', 'VaultHunter', 'NightReaper', 'IronFang77',
+  'StormCaller', 'DarkForge', 'RuneWarden', 'BloodAxe', 'SilverWolf',
+  'PhantomX', 'ArcaneRaider', 'GrimHollow', 'ThunderStrike', 'VoidWalker',
+  'FrostByte', 'EtherSlayer', 'ObsidianX', 'ChaosEdge', 'LostSamurai',
+];
+
 const Clash = () => {
   const [phase, setPhase] = useState<Phase>('search');
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const wallet = useWalletContext();
+  const player = usePlayerData(wallet?.address ?? null);
+
+  const handleMatchEnd = useCallback(
+    (result: 'Won' | 'Lost', resources: { ore: number; gold: number; diamond: number; mana: number }) => {
+      const opponent = RANDOM_OPPONENTS[Math.floor(Math.random() * RANDOM_OPPONENTS.length)];
+      player.recordMatch({
+        date:      new Date().toISOString(),
+        opponent,
+        size:      1,
+        result,
+        awards:    result === 'Won' ? '+48' : '+0',
+        resources,
+      });
+    },
+    [player],
+  );
 
   const handleSearch = useCallback(() => {
     setPhase('selecting');
@@ -391,7 +417,7 @@ const Clash = () => {
             zIndex: 100, background: '#000',
           }}
         >
-          <RaidGame autoStart onReturn={handleReturn} />
+          <RaidGame autoStart onReturn={handleReturn} onMatchEnd={handleMatchEnd} />
         </div>
       )}
     </div>

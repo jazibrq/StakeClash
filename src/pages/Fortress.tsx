@@ -154,22 +154,39 @@ const Fortress = () => {
                 {player.matchHistory.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-4">No matches yet</p>
                 )}
-                {player.matchHistory.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between py-1 border-t border-border first:border-0">
-                    <div>
-                      <p className="text-xs font-mono">{m.opponent}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(m.date).toLocaleDateString()} · {m.size}p</p>
+                {player.matchHistory.map((m) => {
+                  const res = m.resources ?? { ore: 0, gold: 0, diamond: 0, mana: 0 };
+                  const resItems = [
+                    { key: 'ore',     label: 'Ore',     logo: '/images/resources/orelogo.png',     amount: res.ore     },
+                    { key: 'gold',    label: 'Gold',    logo: '/images/resources/goldlogo.png',    amount: res.gold    },
+                    { key: 'diamond', label: 'Diamond', logo: '/images/resources/diamondlogo.png', amount: res.diamond },
+                    { key: 'mana',    label: 'Mana',    logo: '/images/resources/manalogo.png',    amount: res.mana    },
+                  ];
+                  return (
+                    <div key={m.id} className="group border-t border-border first:border-0">
+                      {/* Main row: name + result */}
+                      <div className="flex items-center justify-between py-1.5 cursor-default">
+                        <p className="text-xs font-mono">{m.opponent}</p>
+                        <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
+                          {m.result}
+                        </p>
+                      </div>
+                      {/* Inline resource row — revealed on hover */}
+                      <div className="hidden group-hover:flex items-center gap-1.5 pb-1.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground">{new Date(m.date).toLocaleDateString()}</span>
+                        <span className="text-[10px] text-muted-foreground">·</span>
+                        {resItems.map(r => (
+                          <div key={r.key} className="flex items-center gap-0.5">
+                            <img src={r.logo} alt={r.label} className="w-3 h-3 object-contain" />
+                            <span className={cn('text-[10px] font-mono', r.amount > 0 ? 'text-emerald-400' : 'text-muted-foreground')}>
+                              {r.amount > 0 ? `+${r.amount}` : '0'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
-                        {m.result}
-                      </p>
-                      <p className={cn('text-xs font-mono', m.awards.startsWith('+') ? 'text-primary' : 'text-muted-foreground')}>
-                        {m.awards}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
