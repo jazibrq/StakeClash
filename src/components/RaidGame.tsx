@@ -357,7 +357,7 @@ const VictoryRewards: React.FC = () => {
       backgroundImage: 'url(/scrollbg.png)',
       backgroundSize: '100% 100%',
       backgroundRepeat: 'no-repeat',
-      padding: '96px 60px 96px 88px',
+      padding: '96px 88px 96px 88px',
       display: 'flex', flexDirection: 'column', gap: '14px',
       minWidth: 340,
     }}>
@@ -368,20 +368,23 @@ const VictoryRewards: React.FC = () => {
           transform: visible[i] ? 'scale(1) translateY(0)' : 'scale(0.5) translateY(8px)',
           transition: 'opacity 0.3s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         }}>
-          <img
-            src={`/images/resources/${r.resource}logo.png`}
-            alt={r.label}
-            style={{ width: r.iconSize, height: r.iconSize, imageRendering: 'pixelated', flexShrink: 0 }}
-          />
+          {/* Fixed-width icon cell so all rows align */}
+          <div style={{ width: 40, height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src={`/images/resources/${r.resource}logo.png`}
+              alt={r.label}
+              style={{ width: r.iconSize, height: r.iconSize, imageRendering: 'pixelated' }}
+            />
+          </div>
           <span style={{
             fontFamily: "'Pixelify Sans', sans-serif", fontSize: '14px',
-            color: 'rgba(0,0,0,0.6)', width: 68,
+            color: 'rgba(0,0,0,0.6)', width: 68, flexShrink: 0,
           }}>
             {r.label}
           </span>
           <span style={{
             fontFamily: "'Pixelify Sans', sans-serif", fontSize: '20px', fontWeight: 700,
-            color: r.color, minWidth: 48,
+            color: r.color, minWidth: 48, textAlign: 'right',
             textShadow: `0 0 18px ${r.color}88`,
           }}>
             +{counts[i]}
@@ -431,6 +434,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
   const clashCounterRef   = useRef<HTMLSpanElement>(null);
   const [started, setStarted] = useState(autoStart);
   const [result, setResult] = useState<'victory' | 'defeat' | null>(null);
+
   const [bladestormPlaying, setBladestormPlaying] = useState(false);
   const [ragePlaying, setRagePlaying] = useState(false);
   const [clashPlaying, setClashPlaying] = useState(false);
