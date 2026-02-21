@@ -28,12 +28,12 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 );
 
 const Divider = () => (
-  <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-16" />
+  <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-8" />
 );
 
 const Step = ({
   n, title, body,
-}: { n: number; title: string; body: string }) => (
+}: { n: number; title: string; body: React.ReactNode }) => (
   <div className="flex gap-5">
     <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary/10 border border-primary/30
                     flex items-center justify-center font-mono text-sm font-bold text-primary mt-0.5">
@@ -41,16 +41,9 @@ const Step = ({
     </div>
     <div>
       <p className="font-semibold text-foreground text-sm mb-1">{title}</p>
-      <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
+      <div className="text-sm text-muted-foreground leading-relaxed">{body}</div>
     </div>
   </div>
-);
-
-const Pill = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
-                   bg-primary/10 text-primary border border-primary/20">
-    {children}
-  </span>
 );
 
 const FAQ = ({ q, a }: { q: string; a: string }) => (
@@ -148,7 +141,6 @@ const DashAnim = ({ size = 96 }: { size?: number }) => {
     ctx.clearRect(0, 0, size, size);
     if (!img || !img.complete || !img.naturalWidth) return;
     const sx = frameRef.current * 128;
-    // ghost copies shifted left (partially clipped at canvas edge)
     const ghosts = [{ dx: -30, a: 0.12 }, { dx: -20, a: 0.25 }, { dx: -10, a: 0.42 }];
     for (const g of ghosts) {
       ctx.globalAlpha = g.a;
@@ -287,15 +279,6 @@ const KeySprite = ({
   );
 };
 
-const DiffCard = ({
-  title, body,
-}: { title: string; body: string }) => (
-  <div className="card-surface rounded-xl p-5 border-l-2 border-primary">
-    <p className="font-semibold text-foreground text-sm mb-2">{title}</p>
-    <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
-  </div>
-);
-
 /* ─── page ──────────────────────────────────────────────── */
 
 const Learn = () => (
@@ -312,174 +295,205 @@ const Learn = () => (
 
         {/* ── Hero ── */}
         <div className="mb-16">
-          <Pill>Documentation</Pill>
           <h1 className="text-4xl sm:text-5xl font-black mt-4 mb-5 leading-tight">
-            How StakeClash Works
+            ⚔️ How StakeClash Works
           </h1>
-          <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl">
-            A complete, plain-language guide to the game, the staking layer,
-            and how you earn — without risking your principal.
-          </p>
         </div>
 
-        {/* ── What is StakeClash ── */}
-        <section id="what-is">
+        {/* ── The Big Idea ── */}
+        <section id="big-idea">
           <SectionLabel>Overview</SectionLabel>
-          <SectionTitle>What is StakeClash?</SectionTitle>
+          <SectionTitle>The Big Idea</SectionTitle>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            StakeClash is a competitive strategy game built on top of decentralized finance.
-            Players deposit real assets — ETH, stablecoins, and more — which are automatically
-            put to work in yield-generating protocols. The <em className="text-foreground not-italic font-medium">interest earned</em> on
-            those deposits becomes in-game resources. Players use those resources to build
-            fortresses, compete in battles, and earn a share of the collective yield pool.
+            StakeClash turns staking into a competitive strategy game.
           </p>
+          <ul className="space-y-2 mb-6">
+            {[
+              'You deposit crypto like ETH, Hedera, or USDC.',
+              'That deposit earns real yield in the background.',
+              'The yield becomes proportional to in-game resources, with each cryptocurrency representing a resource.',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
+                <span className="text-primary mt-0.5">—</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
           <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-            The key principle: <span className="text-foreground font-medium">your principal is never at risk.</span> You
-            are not gambling your deposit. You are playing with the returns your money was already
-            generating — StakeClash just makes that process interactive and competitive.
+            You use those resources to build, upgrade, attack, defend, and compete.
           </p>
-          <div className="card-surface rounded-xl p-5 mt-6">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">
-              The core idea in one sentence
-            </p>
-            <p className="text-base font-semibold text-foreground leading-snug">
-              "Stake your assets. The yield becomes the game. Win more yield."
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            At the end of the season, you receive:
+          </p>
+          <ul className="space-y-2 mb-6">
+            {[
+              'Your full principal back',
+              'Your base yield',
+              'A larger or smaller share of the bonus yield pool depending on how well you played',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-foreground font-medium">
+                <span className="text-primary mt-0.5">✓</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </section>
 
-        <Divider />
+        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-8" />
 
-        {/* ── How It Works ── */}
+        {/* ── Step by Step ── */}
         <section id="how-it-works">
           <SectionLabel>Step by Step</SectionLabel>
           <SectionTitle>How It Works</SectionTitle>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-            From connecting your wallet to earning rewards, here is the complete journey.
-          </p>
-          <div className="space-y-7">
+          <div className="space-y-7 mb-10">
             <Step
               n={1}
               title="Connect Your Wallet"
-              body="Use MetaMask, WalletConnect, or any compatible Web3 wallet. No account creation, no email, no KYC. Your wallet is your identity."
+              body=""
             />
             <Step
               n={2}
-              title="Deposit Supported Assets"
-              body="Deposit ETH, USDC, or other supported tokens into your StakeClash Vault. You can deposit any amount above the protocol minimum. Your funds are held in a non-custodial smart contract — not by us."
+              title="Deposit Crypto to Unlock Buildings"
+              body={
+                <span>
+                  When you deposit supported assets (ETH, USDC, etc.), you unlock buildings in your Fortress.
+                  Each building generates in-game resources over time, provides buffs to your hero or defenses,
+                  and increases your share of the season's yield pool. More deposits = stronger buildings = higher resource production.
+                  Your crypto is automatically put to work in real yield-generating protocols in the background.
+                </span>
+              }
             />
             <Step
               n={3}
-              title="Your Principal is Staked Automatically"
-              body="Immediately after deposit, your assets are delegated to audited yield-generating protocols (liquid staking, lending pools, or similar). Your principal remains intact and continues accruing yield around the clock."
+              title="Yield Turns Into Resources"
+              body="You earn a fixed amount of resources per day depending on how much of the corresponding cryptocurrency you deposited to be staked. This allows users that deposited more to get proportionally more resources, to give incentive to expand the prize pool."
             />
-            <Step
-              n={4}
-              title="Yield Converts to In-Game Resources"
-              body="The interest your deposit earns is converted into four in-game resources — Ore, Gold, Diamond, and Mana — at real-time rates. No yield, no resources. The game is self-funding from returns your money was already earning."
+          </div>
+
+          {/* ── Resource cards ── */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Resource
+              name="Ore"
+              icon="ore"
+              description="Earned from Ore Mine and buffs defense attributes, associated with Hedera."
             />
-            <Step
-              n={5}
-              title="Compete and Earn"
-              body="Use your resources to build and upgrade your Fortress, then enter Clash battles against other players. Winners receive a larger share of the collective yield pool for that round."
+            <Resource
+              name="Gold"
+              icon="gold"
+              description="Earned from Gold Vault and buffs attack attributes, associated with USDC."
             />
-            <Step
-              n={6}
-              title="Withdrawal"
-              body="You can only withdraw your full principal and earned yield at the end of the season."
+            <Resource
+              name="Diamond"
+              icon="diamond"
+              description="Earned from Diamond Forge and buffs Speed, associated with ETH."
+            />
+            <Resource
+              name="Mana"
+              icon="mana"
+              description="Earned from Mana Sanctum, buffs cooldown reduction."
             />
           </div>
         </section>
 
         <Divider />
 
-        {/* ── Where Yield Comes From ── */}
-        <section id="yield">
-          <SectionLabel>The Finance Layer</SectionLabel>
-          <SectionTitle>Where the Yield Comes From</SectionTitle>
+        {/* ── Season Structure ── */}
+        <section id="season-structure">
+          <SectionLabel>Seasons</SectionLabel>
+          <SectionTitle>Season Structure</SectionTitle>
           <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            Yield is generated by putting deposited assets to work in established DeFi protocols.
-            StakeClash does not create returns out of thin air — the yield is real and comes from
-            one of several sources depending on the asset type.
+            Each cycle of StakeClash has two phases:
+          </p>
+          <div className="space-y-4">
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">Deposit Period</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Players deposit supported assets to unlock buildings and prepare their Fortress. During this phase, no battles occur.
+                </p>
+              </div>
+            </div>
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">Season Period</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Once the season begins, deposits are locked for the duration of that season. Players compete, generate resources from yield, upgrade buildings, raid opponents, and climb the rankings.
+                  At the end of the season, principal and yield are automatically settled according to performance.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── The Strategy Layer ── */}
+        <section id="strategy">
+          <SectionLabel>The Game Layer</SectionLabel>
+          <SectionTitle>The Strategy Layer</SectionTitle>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            StakeClash isn't passive. It's strategic. Every season, you choose how to use your resources:
           </p>
           <div className="grid sm:grid-cols-2 gap-4 mb-6">
             {[
               {
-                label: 'Liquid Staking (ETH)',
-                body: 'ETH deposits are staked via liquid staking protocols (e.g. Lido, Rocket Pool). Stakers earn Ethereum network validation rewards (~3–5% APY) while keeping their assets liquid.',
+                title: 'Upgrade Now?',
+                body: 'Invest resources into buildings or heroes for long-term production boosts and stronger stat buffs.',
               },
               {
-                label: 'Lending Pools (Stablecoins)',
-                body: 'Stablecoins are supplied to lending protocols (e.g. Aave, Compound). Borrowers pay interest; depositors receive a share of that interest as yield.',
+                title: 'Save for Endgame?',
+                body: 'Hold resources and unleash stronger upgrades or abilities near the end of the season.',
               },
               {
-                label: 'Yield Aggregators',
-                body: 'For maximum efficiency, assets may be routed through yield aggregators that automatically move funds to the highest-returning strategy at any given time.',
+                title: 'Play Aggressively?',
+                body: 'Attack other players to steal a portion of their accumulated in-game currency.',
               },
               {
-                label: 'Restaking Protocols',
-                body: 'As restaking matures (e.g. EigenLayer), eligible assets may participate to generate additional yield on top of base staking rewards.',
+                title: 'Play Defensively?',
+                body: 'Upgrade fortifications to make raids against you less profitable.',
               },
-            ].map(({ label, body }) => (
-              <div key={label} className="card-surface rounded-xl p-4">
-                <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">{label}</p>
+            ].map(({ title, body }) => (
+              <div key={title} className="card-surface rounded-xl p-5 border-l-2 border-primary">
+                <p className="font-semibold text-foreground text-sm mb-2">{title}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
               </div>
             ))}
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            All yield-generating integrations are audited and disclosed in the protocol documentation.
-            Yield rates fluctuate with market conditions and are never guaranteed — but the principal
-            deposit itself is not exposed to the game outcome.
+            There is no single optimal path. Different strategies work in different seasons.
           </p>
         </section>
 
         <Divider />
 
-        {/* ── How You Play ── */}
-        <section id="gameplay">
-          <SectionLabel>The Game Layer</SectionLabel>
-          <SectionTitle>How You Play</SectionTitle>
+        {/* ── Heroes & Battles ── */}
+        <section id="heroes">
+          <SectionLabel>Combat</SectionLabel>
+          <SectionTitle>Heroes & Battles</SectionTitle>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            You choose a Hero to represent you in battle. Your hero:
+          </p>
+          <ul className="space-y-2 mb-6">
+            {[
+              'Defends your fortress when others attack',
+              'Attacks enemy fortresses in Clash mode',
+              'Uses abilities powered by Mana',
+              'Gains advantages from your building upgrades',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
+                <span className="text-primary mt-0.5">—</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
           <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-            Gameplay is built around four resource types, each mapped to a class of in-game
-            activity. Resources are generated passively from yield and consumed through strategic
-            decisions.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-4 mb-8">
-            <Resource
-              name="Ore"
-              icon="ore"
-              description="The foundational resource. Used to construct and reinforce Fortress structures. High ore production means a more durable, harder-to-raid fortress."
-            />
-            <Resource
-              name="Gold"
-              icon="gold"
-              description="The economy resource. Powers upgrades, boosts attack strength, and expands your storage capacity. More gold means faster progression."
-            />
-            <Resource
-              name="Diamond"
-              icon="diamond"
-              description="The rare resource. Unlocks high-tier upgrades and elite abilities. Diamond production scales slowly — managing it strategically matters."
-            />
-            <Resource
-              name="Mana"
-              icon="mana"
-              description="The power resource. Fuels special abilities in battle — shield spells, dash abilities, and the devastating Bladestorm ultimate."
-            />
-          </div>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-            Resources accumulate over time based on your Fortress level and the yield your deposit
-            is earning. Upgrading your Fortress increases production rates — giving players who
-            engage more actively a compounding advantage over time.
-          </p>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            In the Clash battle mode, you deploy into a 60-second real-time combat arena. Survive
-            the raid and eliminate enemies to earn charge for your ultimate abilities and a stronger
-            position in the rewards pool.
+            Battles are short, skill-based, and strategic.
           </p>
 
           {/* ── Controls quick-reference ── */}
-          <div className="mt-8">
+          <div>
             <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-1">Controls</p>
             <h3 className="text-2xl font-bold text-foreground mb-3 leading-tight">How To Play</h3>
             <div className="h-px mb-5" style={{ background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.5), transparent)' }} />
@@ -532,9 +546,7 @@ const Learn = () => (
                 <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Shield</p>
               </div>
               <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
-                <div style={{ width: 96, height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {/* placeholder — ultimate animation coming */}
-                </div>
+                <div style={{ width: 96, height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
                 <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                   <KeySprite src={xKeyPng} frameWidth={17} frameHeight={16} displayHeight={44} />
                 </div>
@@ -546,83 +558,213 @@ const Learn = () => (
 
         <Divider />
 
-        {/* ── How You Win ── */}
-        <section id="winning">
-          <SectionLabel>Rewards</SectionLabel>
-          <SectionTitle>How You Win</SectionTitle>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            Winning in StakeClash is not binary. Rewards are distributed continuously based on
-            performance, not just placement.
+        {/* ── Attacking & Raiding ── */}
+        <section id="raiding">
+          <SectionLabel>PvP</SectionLabel>
+          <SectionTitle>Attacking & Raiding</SectionTitle>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+            You can raid other players to take a portion of their accumulated in-game resources. Raiding:
           </p>
-          <div className="space-y-4">
+          <ul className="space-y-2 mb-6">
             {[
-              {
-                title: 'Yield Pool Allocation',
-                body: 'All deposited assets earn yield collectively. A portion of that yield is pooled each round and redistributed among players weighted by battle performance. Stronger players earn a larger slice.',
-              },
-              {
-                title: 'Fortress Ranking Bonuses',
-                body: 'Players with higher-level Fortresses receive a passive yield bonus on their share — rewarding long-term engagement and resource investment.',
-              },
-              {
-                title: 'Battle Outcomes',
-                body: 'Surviving a Clash raid and defeating enemies earns you a performance score that directly increases your reward allocation for that epoch.',
-              },
-              {
-                title: 'No Losers Scenario',
-                body: 'Even players who lose battles continue earning base yield on their principal. The game layer is competitive for bonus yield — not survival of your deposit.',
-              },
-            ].map(({ title, body }) => (
-              <div key={title} className="card-surface rounded-xl p-5 flex gap-4">
-                <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
-                <div>
-                  <p className="font-semibold text-foreground text-sm mb-1">{title}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
-                </div>
+              'Does not affect their principal deposit',
+              'Does not affect their base yield',
+              'Only affects in-game resource balances',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
+                <span className="text-primary mt-0.5">—</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            This creates a competitive economy without risking real deposits.
+          </p>
+        </section>
+
+        <Divider />
+
+        {/* ── End of Season ── */}
+        <section id="rewards">
+          <SectionLabel>Rewards</SectionLabel>
+          <SectionTitle>End of Season: How Rewards Work</SectionTitle>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            At the end of a season, all players receive their full principal back and their base yield.
+            A bonus yield pool is then distributed based on performance.
+          </p>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-4">Your allocation depends on:</p>
+          <ul className="space-y-2 mb-6">
+            {[
+              'How much in-game currency you accumulated',
+              'Your battle performance',
+              'Your overall strategic choices',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
+                <span className="text-primary mt-0.5">—</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="card-surface rounded-xl p-5">
+            <p className="text-sm font-semibold text-foreground mb-1">Better play = larger share of bonus yield.</p>
+            <p className="text-xs text-muted-foreground">
+              But even if you lose every battle, your deposit remains intact and earning.
+            </p>
+          </div>
+        </section>
+
+        <Divider />
+
+        {/* ── Where the Yield Comes From ── */}
+        <section id="yield">
+          <SectionLabel>The Finance Layer</SectionLabel>
+          <SectionTitle>Where the Yield Comes From</SectionTitle>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            StakeClash does not invent returns. Deposited assets are routed to real DeFi protocols:
+          </p>
+          <div className="grid sm:grid-cols-3 gap-4 mb-6">
+            {[
+              { label: 'ETH', body: 'Liquid staking' },
+              { label: 'Stablecoins', body: 'Lending pools' },
+              { label: 'Future', body: 'Yield aggregators or restaking' },
+            ].map(({ label, body }) => (
+              <div key={label} className="card-surface rounded-xl p-4 text-center">
+                <p className="text-xs font-semibold text-primary uppercase tracking-wide mb-2">{label}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
               </div>
             ))}
           </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Yield rates fluctuate. They are not guaranteed. But your principal is never exposed to battle outcomes.
+          </p>
         </section>
 
         <Divider />
 
-        {/* ── Why It's Different ── */}
-        <section id="why">
-          <SectionLabel>Differentiators</SectionLabel>
-          <SectionTitle>Why It's Different</SectionTitle>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            Most blockchain games either require you to speculate on game tokens or risk your
-            deposit directly. StakeClash is built on a different set of principles.
+        {/* ── How the Backend Works ── */}
+        <section id="backend">
+          <SectionLabel>Technical</SectionLabel>
+          <SectionTitle>How the Backend Works</SectionTitle>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+            Behind the scenes, StakeClash is powered by deterministic blockchain infrastructure — not manual admin actions.
           </p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <DiffCard
-              title="No Speculation Required"
-              body="You deposit assets you already hold. There is no native game token to buy, no speculative asset to acquire first. Your deposit is productive from day one."
-            />
-            <DiffCard
-              title="Principal-Safe Architecture"
-              body="The game is funded entirely by yield. Your deposit is never exposed to battle outcomes. You cannot lose your principal by playing — or by losing."
-            />
-            <DiffCard
-              title="Real Underlying Yield"
-              body="Rewards come from actual economic activity — staking validators, lending markets, liquidity protocols. Not from token inflation or unsustainable emissions."
-            />
-            <DiffCard
-              title="Skill Has Meaning"
-              body="Better players earn a larger share of the yield pool. This creates a genuinely competitive layer on top of passive staking — strategy and skill are rewarded."
-            />
-            <DiffCard
-              title="Non-Custodial by Design"
-              body="Your assets are held in smart contracts you can verify. StakeClash never takes custody of your funds. You can verify all movements on-chain."
-            />
-            <DiffCard
-              title="Withdraw Anytime"
-              body="No lock-up periods enforced by the game. Exit whenever you want. Your principal and unused yield are always accessible subject only to the underlying protocol's rules."
-            />
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            Everything is transparent and verifiable on-chain.
+          </p>
+          <div className="space-y-4">
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">On-Chain Deposit Tracking</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">All deposits are recorded directly on their respective blockchains.</p>
+                <ul className="space-y-1">
+                  {[
+                    'HBAR deposits are tracked via Hedera mirror nodes.',
+                    'ETH and USDC deposits are standard on-chain transfers to the treasury wallet.',
+                    'There are no off-chain ledgers and no internal balance manipulation.',
+                    'All asset movements can be verified publicly.',
+                  ].map(item => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-0.5">—</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">External Yield Generation</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Deposited assets are routed to audited yield-generating protocols appropriate for that asset class (liquid staking, lending pools, etc.).
+                  StakeClash does not create yield artificially and does not control market returns. Yield is generated externally and reflected proportionally in the game layer.
+                </p>
+              </div>
+            </div>
+
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">Network-Level Season Timing (Hedera Schedule Service)</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">Season timing is enforced using Hedera's native Schedule Service. No backend timers or cron jobs are used.</p>
+                <p className="text-xs text-muted-foreground mb-1">When a season begins:</p>
+                <ul className="space-y-1 mb-2">
+                  {[
+                    'A time-locked transaction is scheduled on Hedera.',
+                    'The network enforces the expiration.',
+                  ].map(item => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-0.5">—</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground mb-1">At the scheduled expiry:</p>
+                <ul className="space-y-1 mb-2">
+                  {[
+                    'Hedera automatically executes the settlement transaction.',
+                    'Execution is guaranteed by the network itself, even if the backend is offline.',
+                  ].map(item => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-0.5">—</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">This makes season timing deterministic and tamper-resistant.</p>
+              </div>
+            </div>
+
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">Mirror-Based Settlement Trigger</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">The backend listens to Hedera mirror nodes to detect when the scheduled transaction executes. When execution is confirmed:</p>
+                <ul className="space-y-1 mb-2">
+                  {[
+                    'The backend triggers corresponding ETH and USDC refunds from the treasury wallet.',
+                    'Cross-chain settlement is event-driven — not manually initiated.',
+                    'Admin logs update in real time.',
+                  ].map(item => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-0.5">—</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">Hedera acts as the timing authority. Ethereum acts as the settlement mirror.</p>
+              </div>
+            </div>
+
+            <div className="card-surface rounded-xl p-5 flex gap-4">
+              <div className="flex-shrink-0 w-1.5 rounded-full bg-primary/50 self-stretch" />
+              <div>
+                <p className="font-semibold text-foreground text-sm mb-1">Automatic Cross-Chain Settlement</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">Settlement follows a simple flow:</p>
+                <ul className="space-y-1 mb-2">
+                  {[
+                    'Hedera scheduled refund executes.',
+                    'Mirror node confirms the outgoing transfer.',
+                    'Backend detects the event.',
+                    'ETH and USDC refunds are sent from the treasury wallet.',
+                    'The season concludes automatically.',
+                  ].map((item, i) => (
+                    <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-0.5 font-mono">{i + 1}.</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">No admin intervention is required.</p>
+              </div>
+            </div>
           </div>
         </section>
 
         <Divider />
+
 
         {/* ── FAQ ── */}
         <section id="faq" className="mb-24">
@@ -630,36 +772,16 @@ const Learn = () => (
           <SectionTitle>Frequently Asked Questions</SectionTitle>
           <div className="card-surface rounded-xl p-6 sm:p-8 space-y-6">
             <FAQ
-              q="Do I need to understand DeFi to play?"
-              a="No. StakeClash handles the staking and yield mechanics automatically after you deposit. You interact with the game layer — the protocol layer runs in the background. You do not need to understand liquid staking or lending pools to participate."
+              q="Can I lose my deposit?"
+              a="No. As soon as the season starts, Hedera scheduling service creates a transaction to refund your initial deposit at the end of the season period. Losing only affects your share of bonus yield — not your original deposit."
             />
             <FAQ
               q="Is this gambling?"
-              a="No. Gambling involves risking your principal on an uncertain outcome. In StakeClash, your principal is never at risk. You are competing for a portion of yield that your deposit was already generating. The worst outcome of a lost battle is a smaller yield allocation — not a loss of your deposit."
+              a="No. Gambling risks your principal on uncertain outcomes. In StakeClash, you compete for yield that your deposit was already generating. The worst outcome is earning less bonus yield — not losing your deposit."
             />
             <FAQ
-              q="What happens to my deposit if I lose every battle?"
-              a="Nothing. Your full principal remains staked and continues earning base yield. Only the competitive portion of the yield pool (the bonus layer) is affected by battle performance. Losing battles means earning less bonus yield, not losing your deposit."
-            />
-            <FAQ
-              q="How are the underlying protocols selected?"
-              a="StakeClash integrates only with audited, battle-tested DeFi protocols with substantial track records and total value locked. The full list of integrated protocols is disclosed in the on-chain documentation. Any change to the protocol set is governed by the StakeClash governance process."
-            />
-            <FAQ
-              q="What are the fees?"
-              a="StakeClash charges a small protocol fee on yield distributed through the game layer — not on your principal. The exact fee structure is detailed in the smart contract documentation and is set by governance."
-            />
-            <FAQ
-              q="Which assets can I deposit?"
-              a="Currently ETH and major stablecoins (USDC, DAI) are supported. Additional assets will be added via governance as new yield integrations are audited and approved."
-            />
-            <FAQ
-              q="How long does it take to withdraw?"
-              a="Withdrawals of yield are typically instant. Principal withdrawals depend on the underlying protocol: liquid staking may involve a 1–7 day unstaking queue, while stablecoin lending positions are usually instant. StakeClash imposes no additional lock-up beyond what the protocol requires."
-            />
-            <FAQ
-              q="Is the code audited?"
-              a="Yes. All StakeClash smart contracts are audited prior to mainnet deployment. Audit reports are published publicly. Given the non-custodial nature of the protocol, on-chain verification is always available."
+              q="Do I need to understand DeFi to play?"
+              a="No. The staking layer runs automatically in the background. You focus on upgrading buildings, managing resources, and winning battles."
             />
           </div>
         </section>

@@ -6,6 +6,7 @@ import { GrainOverlay } from '@/components/GrainOverlay';
 import { Button } from '@/components/ui/button';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
+import { SHARED_RESOURCES_KEY } from '@/pages/Fortress';
 
 import {
   Shield, Zap, Wind, Swords, GitBranch, X, ChevronRight,
@@ -612,19 +613,17 @@ const Hero = () => {
   // we track them here as the "spendable" pool stored via usePlayerData indirectly)
   const [resources, setResources] = useState({ ore: 0, gold: 0, diamond: 0, mana: 0 });
 
-  // Sync resources from player data on load
+  // Sync resources from the shared Fortress resource pool
   useEffect(() => {
-    const key = `stakeclash_hero_resources_${wallet?.address?.toLowerCase() ?? 'guest'}`;
     try {
-      const raw = localStorage.getItem(key);
+      const raw = localStorage.getItem(SHARED_RESOURCES_KEY);
       if (raw) setResources(JSON.parse(raw));
-      else setResources({ ore: 120, gold: 70, diamond: 24, mana: 48 }); // starter balance
-    } catch { setResources({ ore: 120, gold: 70, diamond: 24, mana: 48 }); }
+      else setResources({ ore: 1000, gold: 564, diamond: 276, mana: 821 });
+    } catch { setResources({ ore: 1000, gold: 564, diamond: 276, mana: 821 }); }
   }, [wallet?.address]);
 
   function saveResources(r: typeof resources) {
-    const key = `stakeclash_hero_resources_${wallet?.address?.toLowerCase() ?? 'guest'}`;
-    localStorage.setItem(key, JSON.stringify(r));
+    localStorage.setItem(SHARED_RESOURCES_KEY, JSON.stringify(r));
   }
 
   function handleSpend(cost: ResourceCost) {

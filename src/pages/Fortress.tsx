@@ -26,6 +26,8 @@ type FortressState = {
   levels: Record<Resource, Level>;
 };
 
+export const SHARED_RESOURCES_KEY = 'stakeclash_resources';
+
 const INITIAL_RESOURCES: Resources = {
   ore: 1000,
   diamond: 276,
@@ -82,15 +84,16 @@ const Fortress = () => {
   /* Accumulate resources over time (replaced by real wallet data when available) */
   useEffect(() => {
     const id = setInterval(() => {
-      setFortressState(prev => ({
-        ...prev,
-        resources: {
+      setFortressState(prev => {
+        const next: Resources = {
           ore:     prev.resources.ore     + (PROD_PER_HOUR.ore[prev.levels.ore]         / 3600),
           gold:    prev.resources.gold    + (PROD_PER_HOUR.gold[prev.levels.gold]       / 3600),
           diamond: prev.resources.diamond + (PROD_PER_HOUR.diamond[prev.levels.diamond] / 3600),
           mana:    prev.resources.mana    + (PROD_PER_HOUR.mana[prev.levels.mana]       / 3600),
-        },
-      }));
+        };
+        localStorage.setItem(SHARED_RESOURCES_KEY, JSON.stringify(next));
+        return { ...prev, resources: next };
+      });
     }, 1000);
     return () => clearInterval(id);
   }, []);
@@ -107,6 +110,7 @@ const Fortress = () => {
         nextResources[cost.resource] = Math.max(0, nextResources[cost.resource] - cost.amount);
       }
 
+      localStorage.setItem(SHARED_RESOURCES_KEY, JSON.stringify(nextResources));
       return {
         resources: nextResources,
         levels: { ...prev.levels, [resource]: level },
