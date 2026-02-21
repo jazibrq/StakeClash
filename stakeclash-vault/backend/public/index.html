@@ -93,6 +93,14 @@
       font-size: 0.82rem;
     }
 
+    .events-panel pre {
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      color: #f0c040;
+      line-height: 1.7;
+    }
+
     .empty { color: #666; font-style: italic; }
   </style>
 </head>
@@ -114,6 +122,12 @@
   <div class="panel">
     <h2>Season Log</h2>
     <pre id="log" class="log-output"><span class="empty">No activity yet.</span></pre>
+  </div>
+
+  <!-- Operational events panel -->
+  <div class="panel events-panel" style="max-width:900px;">
+    <h2>Refund Events</h2>
+    <pre id="adminLogs"><span class="empty">No events yet.</span></pre>
   </div>
 
   <!-- Live backend logs panel -->
@@ -191,6 +205,19 @@
       }
     }
 
+    async function loadAdminLogs() {
+      const el = document.getElementById("adminLogs");
+      try {
+        const res  = await fetch(`${API}/admin/logs`);
+        const data = await res.json();
+        if (data.logs && data.logs.length > 0) {
+          el.textContent = data.logs.join("\n");
+        }
+      } catch (e) {
+        // keep showing last output
+      }
+    }
+
     async function loadLogs() {
       const el = document.getElementById("backendLogs");
       try {
@@ -204,12 +231,14 @@
       }
     }
 
-    // Load deposits on page open
+    // Load on page open
     loadDeposits();
+    loadAdminLogs();
     loadLogs();
     // Auto-refresh every 10 s
     setInterval(loadDeposits, 10_000);
-    // Poll logs every 2 s
+    // Poll every 2 s
+    setInterval(loadAdminLogs, 2_000);
     setInterval(loadLogs, 2_000);
   </script>
 

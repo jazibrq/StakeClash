@@ -5,6 +5,7 @@ import { ChevronDown, Loader2, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { depositToTreasury } from '@/lib/vault';
 import { depositEth } from '@/lib/depositEth';
+import { depositUsdc } from '@/lib/depositUsdc';
 import { useWalletContext } from '@/contexts/WalletContext';
 
 /* ─── Assets ─────────────────────────────────────────────────────── */
@@ -44,7 +45,14 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [step, setStep]                 = useState<'input' | 'pending' | 'success'>('input');
   const [txError, setTxError]           = useState<string | null>(null);
+  const [pendingMsg, setPendingMsg]     = useState('Confirm in your wallet...');
   const dropdownRef                     = useRef<HTMLDivElement>(null);
+
+  /* confirm env vars on mount */
+  useEffect(() => {
+    console.log('[Deposit] treasury address defined:', !!import.meta.env.VITE_TREASURY_EVM_ADDRESS);
+    console.log('[Deposit] USDC contract address defined:', !!import.meta.env.VITE_USDC_SEPOLIA_ADDRESS);
+  }, []);
 
   /* close dropdown on outside click */
   useEffect(() => {
@@ -59,6 +67,7 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
 
   const handleConfirm = async () => {
     setTxError(null);
+    setPendingMsg('Confirm in your wallet...');
     setStep('pending');
 
     try {
@@ -72,8 +81,13 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
         await depositToTreasury(amount);
       } else if (mode === 'deposit' && asset.symbol === 'ETH') {
         await depositEth(amount);
+      } else if (mode === 'deposit' && asset.symbol === 'USDC') {
+        setPendingMsg('Waiting for wallet...');
+        const hash = await depositUsdc(amount, () => setPendingMsg('Sending...'));
+        setPendingMsg(`Confirmed: ${hash}`);
+        await new Promise(r => setTimeout(r, 1500));
       } else {
-        // Non-ETH/HBAR or withdraw: keep mock flow for now
+        // other assets / withdraw: mock flow
         await new Promise(r => setTimeout(r, 2400));
       }
 
@@ -251,7 +265,7 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
             <p className="text-sm font-medium mb-1">
               {mode === 'deposit' ? 'Depositing' : 'Withdrawing'} {amount} {asset.symbol}
             </p>
-            <p className="text-xs text-muted-foreground">Confirm in your wallet...</p>
+            <p className="text-xs text-muted-foreground font-mono break-all">{pendingMsg}</p>
           </div>
         )}
 

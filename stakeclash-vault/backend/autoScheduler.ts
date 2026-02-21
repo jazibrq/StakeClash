@@ -2,7 +2,8 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
-import { sendEth } from "../../src/eth";
+import { sendEth }  from "../../src/eth";
+import { sendUsdc } from "../../src/sendUsdc";
 
 import * as http from "http";
 import * as fs from "fs";
@@ -28,6 +29,7 @@ console.log("[INIT] Loaded ENV:", {
 });
 console.log("[INIT] ETH_RPC_URL defined:", !!process.env.ETH_RPC_URL);
 console.log("[INIT] ETH_PRIVATE_KEY defined:", !!process.env.ETH_PRIVATE_KEY);
+console.log("[INIT] USDC_SEPOLIA_ADDRESS defined:", !!process.env.USDC_SEPOLIA_ADDRESS);
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const NETWORK                 = process.env.HEDERA_NETWORK || "testnet";
@@ -64,6 +66,14 @@ function pushLog(_level: string, args: unknown[]): void {
 console.log   = (...args: unknown[]) => { pushLog("LOG",   args); origLog(...args);   };
 console.error = (...args: unknown[]) => { pushLog("ERROR", args); origError(...args); };
 console.warn  = (...args: unknown[]) => { pushLog("WARN",  args); origWarn(...args);  };
+
+// ── Admin event log ────────────────────────────────────────────────────────
+const adminLogs: string[] = [];
+function addAdminLog(message: string): void {
+  const timestamp = new Date().toISOString();
+  adminLogs.unshift(`[${timestamp}] ${message}`);
+  if (adminLogs.length > 100) adminLogs.pop();
+}
 
 // ── Processed tx tracker ───────────────────────────────────────────────────
 const processed = new Set<string>();
@@ -269,17 +279,18 @@ async function poll(): Promise<void> {
         if (recipientTransfer) {
           processed.add(tx.transaction_id);
           const evmAddress = await getEvmAddress(recipientTransfer.account);
-          console.log(`[REFUND] Hedera account: ${recipientTransfer.account}, EVM address: ${evmAddress}`);
-          console.log(`[REFUND] ethDeposits map:`, Array.from(ethDeposits.entries()).map(([k, v]) => `${k}=${v}`));
-          const ethWei = ethDeposits.get(evmAddress.toLowerCase());
-          if (ethWei) {
-            ethDeposits.delete(evmAddress.toLowerCase());
-            saveEthDeposits(ethDeposits);
-            console.log(`[REFUND] Match found — sending ${ethWei} wei on Sepolia to ${evmAddress}`);
-            await sendEth(evmAddress, ethWei);
-          } else {
-            console.log(`[REFUND] No ETH deposit on record for ${evmAddress.toLowerCase()} — skipping Sepolia send`);
-          }
+          console.log(`[REFUND] Hedera refund confirmed — account: ${recipientTransfer.account}, EVM: ${evmAddress}`);
+          addAdminLog(`Hedera refund detected for ${evmAddress}`);
+
+          console.log(`[REFUND] Sending ETH refund to ${evmAddress}`);
+          const ethTx = await sendEth(evmAddress, 1_000_000_000_000_000n); // 0.001 ETH
+          addAdminLog(`ETH refund tx sent: ${ethTx}`);
+          addAdminLog(`ETH refund confirmed: ${ethTx}`);
+
+          console.log(`[REFUND] Sending USDC refund to ${evmAddress}`);
+          const usdcTx = await sendUsdc(evmAddress, 1_000_000n); // 1 USDC
+          addAdminLog(`USDC refund tx sent: ${usdcTx}`);
+          addAdminLog(`USDC refund confirmed: ${usdcTx}`);
         }
         continue;
       }
@@ -399,6 +410,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/logs") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ lines: [...LOG_BUFFER] }));
+    return;
+  }
+
+  // GET /admin/logs — return operational event log
+  if (req.method === "GET" && url.pathname === "/admin/logs") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ logs: [...adminLogs] }));
     return;
   }
 
