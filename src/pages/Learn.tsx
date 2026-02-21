@@ -352,7 +352,7 @@ const Learn = () => (
             <Step
               n={1}
               title="Connect Your Wallet"
-              body=""
+              body="Metamask or Phantom"
             />
             <Step
               n={2}
