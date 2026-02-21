@@ -279,6 +279,17 @@ const KeySprite = ({
   );
 };
 
+/* Manual tweak point for Ultimate sprite position in Controls section */
+const ULTIMATE_SPRITE_OFFSET = { x: 3, y: 28 };
+
+const DiffCard = ({
+  title, body,
+}: { title: string; body: string }) => (
+  <div className="card-surface rounded-xl p-5 border-l-2 border-primary">
+    <p className="font-semibold text-foreground text-sm mb-2">{title}</p>
+    <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
+  </div>
+);
 /* ─── page ──────────────────────────────────────────────── */
 
 const Learn = () => (
@@ -531,7 +542,7 @@ const Learn = () => (
                 <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                   <KeySprite src={shiftKeyPng} frameWidth={44} frameHeight={16} displayHeight={44} />
                 </div>
-                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Sprint</p>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Dash</p>
               </div>
             </div>
             {/* Bottom row: Shield, Ultimate — centered */}
@@ -546,7 +557,20 @@ const Learn = () => (
                 <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Shield</p>
               </div>
               <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
-                <div style={{ width: 96, height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
+                <div style={{
+                  width: 96,
+                  height: 96,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transform: `translate(${ULTIMATE_SPRITE_OFFSET.x}px, ${ULTIMATE_SPRITE_OFFSET.y}px)`,
+                }}>
+                  <img
+                    src="/heroes/prayer.png"
+                    alt="Ultimate"
+                    style={{ width: 96, height: 96, objectFit: 'contain', imageRendering: 'pixelated', display: 'block' }}
+                  />
+                </div>
                 <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
                   <KeySprite src={xKeyPng} frameWidth={17} frameHeight={16} displayHeight={44} />
                 </div>
