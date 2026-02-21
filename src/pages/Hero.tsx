@@ -96,7 +96,7 @@ const heroes = [
     description: 'An armored juggernaut clad in crimson steel. Charges headlong into battle with unwavering resolve.',
     stats: { power: 82, defense: 90, speed: 45 },
     color: 'from-violet-500/20 to-purple-700/10',
-    accent: 'text-neutral-900',
+    accent: 'text-white',
     border: 'border-violet-500/30',
     abilities: ['Crimson Charge', 'Iron Bulwark', 'Rally Cry'],
     idleSprite: { src: '/heroes/Knight_3/Idle.png', frames: 4, frameWidth: 128, frameHeight: 128 },
