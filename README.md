@@ -1,73 +1,150 @@
-# Welcome to your Lovable project
+# StakeClash
 
-## Project info
+On-chain competitive staking powered by Hedera.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+StakeClash is a decentralized application where users deposit assets, compete in yield-based seasons, and receive automated payouts. All delayed execution and payout automation are handled on-chain through Hedera system contracts.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+# Main Track: Etherspace
 
-**Use Lovable**
+User-Owned Internet
+Built on Ethereum — Showcase · Apps · Tokenomics · Art · Ownership Structures · Wallets & Identity · Mainstream Adoption · Social · NFTs
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+StakeClash enables:
 
-Changes made via Lovable will be committed automatically to this repo.
+* Wallet-native participation
+* Verifiable reward execution
+* Non-custodial interaction
+* Smart contract–encoded competitive mechanics
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Architecture
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Components
 
-Follow these steps:
+**Frontend (React / Next.js)**
+Wallet connection · Deposits · Season controls · Schedule lifecycle UI
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+**Smart Contracts**
+Deposit accounting · Season state machine · Deterministic schedule creation · Reward logic
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+**Hedera Network**
+Finality · Native schedule storage · Automated execution
 
-# Step 3: Install the necessary dependencies.
-npm i
+StakeClash integrates directly with **Hedera Schedule Service** for contract-driven automation.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+---
+
+# Core Flow
+
+## 1. Deposit
+
+Users deposit HBAR to the treasury. Deposits are recorded in contract state.
+
+## 2. Season Initialization
+
+The contract:
+
+* Iterates eligible players
+* Computes payouts
+* Creates scheduled transactions via Hedera system contracts
+* Stores Schedule IDs on-chain
+
+Scheduling is initiated from contract logic — not backend scripts.
+
+## 3. Automated Execution
+
+Hedera:
+
+* Tracks signature readiness
+* Executes deterministically
+* Expires invalid schedules
+* Emits execution records
+
+UI lifecycle:
+created → pending → executed / failed
+
+All states are verifiable via mirror node.
+
+---
+
+# Bounty: On-Chain Automation with Hedera Schedule Service
+
+## How StakeClash Fulfills It
+
+### Self-Running Application
+
+* Payout schedules created from contract logic
+* No cron jobs
+* No keepers
+* No off-chain execution triggers
+* Network handles readiness and finalization
+
+### Contract-Driven Scheduling
+
+* Created during season transitions
+* Authorization encoded in contract state
+* Invalid states cannot generate schedules
+
+### Deterministic Execution
+
+* Each payout wrapped in scheduled transaction
+* Expiration defined at creation
+* `.setWaitForExpiry(true)` ensures predictable timing
+* Schedule IDs stored and exposed
+
+### Edge Case Handling
+
+* Insufficient treasury balance
+* Expired schedules
+* Partial participation
+* Replay prevention
+* Invalid transitions
+
+Failure states are observable and recoverable.
+
+### Observability
+
+UI exposes:
+
+* Schedule ID
+* Creation timestamp
+* Execution status
+* Expiration status
+* Linked transaction records
+
+All outcomes independently verifiable via mirror node queries.
+
+### Automation Use Case
+
+StakeClash demonstrates:
+
+* Competitive yield distribution
+* Season-based disbursements
+* Deterministic financial flows
+* Recurring automated reward cycles
+
+This validates Hedera-native automation without off-chain orchestration.
+
+---
+
+# Tech Stack
+
+Hedera Testnet · Hedera Schedule Service System Contracts · Solidity (EVM) · TypeScript backend (monitoring + mirror polling) · React / Next.js
+
+---
+
+# Local Setup
+
+```bash
+git clone https://github.com/jazibrq/StakeClash.git
+cd StakeClash
+npm install
+npx hardhat compile
 npm run dev
+npm run scheduler
 ```
 
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+StakeClash demonstrates contract-initiated scheduling, automated payout execution, and full lifecycle observability using Hedera’s native scheduling infrastructure.
