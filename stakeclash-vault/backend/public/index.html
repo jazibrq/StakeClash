@@ -86,6 +86,13 @@
       color: #aad4ff;
     }
 
+    .log-panel pre {
+      max-height: 420px;
+      overflow-y: auto;
+      color: #c8d8c8;
+      font-size: 0.82rem;
+    }
+
     .empty { color: #666; font-style: italic; }
   </style>
 </head>
@@ -107,6 +114,12 @@
   <div class="panel">
     <h2>Season Log</h2>
     <pre id="log" class="log-output"><span class="empty">No activity yet.</span></pre>
+  </div>
+
+  <!-- Live backend logs panel -->
+  <div class="panel log-panel" style="max-width:900px;">
+    <h2>Backend Logs</h2>
+    <pre id="backendLogs"><span class="empty">Waiting for logs…</span></pre>
   </div>
 
   <script>
@@ -178,10 +191,26 @@
       }
     }
 
+    async function loadLogs() {
+      const el = document.getElementById("backendLogs");
+      try {
+        const res  = await fetch(`${API}/logs`);
+        const data = await res.json();
+        if (data.lines && data.lines.length > 0) {
+          el.textContent = data.lines.slice().reverse().join("\n");
+        }
+      } catch (e) {
+        // backend may be temporarily unreachable — keep showing last output
+      }
+    }
+
     // Load deposits on page open
     loadDeposits();
+    loadLogs();
     // Auto-refresh every 10 s
     setInterval(loadDeposits, 10_000);
+    // Poll logs every 2 s
+    setInterval(loadLogs, 2_000);
   </script>
 
 </body>

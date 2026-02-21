@@ -41,19 +41,9 @@ export const SeasonCountdown = () => {
 
   if (!active || secondsLeft === null) return null;
 
-  const urgent = secondsLeft <= 10;
-
   return (
-    <div
-      className={`
-        flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-mono font-semibold
-        border transition-colors
-        ${urgent
-          ? 'border-red-500/60 bg-red-500/10 text-red-400'
-          : 'border-primary/40 bg-primary/10 text-primary'}
-      `}
-    >
-      <Timer className={`w-3.5 h-3.5 ${urgent ? 'animate-pulse' : ''}`} />
+    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-mono font-semibold border border-white/30 bg-white/5 text-white">
+      <Timer className="w-3.5 h-3.5" />
       <span className="hidden sm:inline text-xs uppercase tracking-wide opacity-70 mr-0.5">
         Season
       </span>
