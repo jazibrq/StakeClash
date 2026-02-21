@@ -8,11 +8,6 @@ import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
 type Phase = 'search' | 'searching' | 'selecting' | 'playing';
 
-/* Module-level singleton — preserves position if player returns to clash */
-const battleMusic = new Audio('/audio/reckoning.mp3');
-battleMusic.loop   = true;
-battleMusic.volume = 0.5;
-
 /* ── Animated sprite canvas ── */
 const AnimatedSprite = ({
   src, frames, frameWidth, frameHeight, frameDuration = 150, size = 96,
@@ -195,20 +190,6 @@ const Clash = () => {
       : Promise.resolve();
     exit.finally(() => navigate('/'));
   }, [navigate]);
-
-  /* Play battle music only while the game is active */
-  useEffect(() => {
-    if (phase === 'playing') {
-      battleMusic.play().catch(() => {});
-    } else {
-      battleMusic.pause();
-    }
-  }, [phase]);
-
-  /* Ensure music stops if the component unmounts mid-game */
-  useEffect(() => {
-    return () => { battleMusic.pause(); };
-  }, []);
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden', position: 'relative' }}>
