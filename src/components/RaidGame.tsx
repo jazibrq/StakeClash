@@ -71,9 +71,10 @@ interface GS {
   lastSpawn:        number;
   running:          boolean;
   uid:              number;
-  wave:             1 | 2 | 3;
+  wave:             1 | 3;       // 1 = pre-boss, 3 = boss phase
   waveAnnounceTimer: number;
   bossSpawned:         boolean;
+  killCount:           number;    // non-boss enemies killed so far
   minotaurRageTimer:    number;   // seconds until rage fires; -1 = idle
   minotaurEnrageTimer:  number;   // seconds remaining on enrage buff (0 = not enraged)
   playerParalyzeTimer:  number;   // seconds of post-rage paralysis remaining
@@ -109,9 +110,8 @@ const ENEMY_MAX_HP     = 40;
 const ENEMY_BASE_SPEED = 75;
 const ENEMY_DAMAGE     = 14;
 /* ── wave constants ── */
-const WAVE_EASY_END   = 20;   // seconds elapsed before medium wave starts
-const WAVE_MEDIUM_END = 40;   // seconds elapsed before hard wave starts
-const BOSS_SPAWN_ELAPSED = 42; // spawn boss this many seconds into the game
+const BOSS_SPAWN_KILLS    = 19;  // boss spawns after this many pre-boss kills
+const PRE_BOSS_DISPLAY    = 20;  // "remaining" counter starts at this value
 const BOSS_RENDER_SIZE   = 280; // placeholder boss draw size
 const BOSS_HIT_POINTS    = 10;  // hits required to kill boss
 const BOSS_DAMAGE        = 30;  // damage boss deals per swing
@@ -486,7 +486,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
     keys: {}, timer: GAME_DURATION,
     lastSpawn: 0,
     running: true, uid: 0,
-    wave: 1, waveAnnounceTimer: 0, bossSpawned: false,
+    wave: 1, waveAnnounceTimer: 0, bossSpawned: false, killCount: 0,
     minotaurRageTimer: -1, minotaurEnrageTimer: 0, playerParalyzeTimer: 0,
     clashActive: false, clashTimer: 0, clashPresses: 0,
   }), []);
@@ -1035,17 +1035,21 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       ctx.font = '12px monospace';
       ctx.fillText('HP', bx, by - 6);
 
-      /* wave counter (replaces timer) */
-      const waveColorTop = gs.wave === 1 ? '#22c55e' : gs.wave === 2 ? '#f59e0b' : '#ef4444';
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      roundRect(ctx, W / 2 - 54, 8, 108, 50, 8); ctx.fill();
-      ctx.fillStyle = waveColorTop;
-      ctx.font = 'bold 26px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(`WAVE ${gs.wave}`, W / 2, 38);
-      ctx.font = '11px monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.fillText(gs.wave === 1 ? 'EASY' : gs.wave === 2 ? 'MEDIUM' : 'HARD', W / 2, 52);
+      /* enemies remaining (top-center) */
+      {
+        const preBossRemaining = Math.max(0, PRE_BOSS_DISPLAY - gs.killCount);
+        const liveCount = gs.enemies.filter(e => e.state !== 'dead' && e.state !== 'dying').length;
+        const displayNum = gs.bossSpawned ? liveCount : preBossRemaining;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        roundRect(ctx, W / 2 - 60, 8, 120, 50, 8); ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = gs.bossSpawned ? '#ef4444' : '#f59e0b';
+        ctx.font = 'bold 26px monospace';
+        ctx.fillText(`${displayNum}`, W / 2, 38);
+        ctx.font = '11px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillText('ENEMIES', W / 2, 52);
+      }
 
       /* ultimate (bladestorm) charge bar */
       {
@@ -1106,45 +1110,35 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
         ctx.fillText('⇧  DASH', dx2, dy2 - 5);
       }
 
-      /* enemy count */
+      /* enemies remaining counter */
       const eCount = gs.enemies.filter(e => e.state !== 'dead' && e.state !== 'dying').length;
+      const displayCount = gs.bossSpawned ? eCount : Math.max(0, PRE_BOSS_DISPLAY - gs.killCount);
       const ecW = 100, ecH = 54;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       roundRect(ctx, W - ecW - 12, 8, ecW, ecH, 8); ctx.fill();
       ctx.textAlign = 'right';
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.font = 'bold 28px monospace';
-      ctx.fillText(`${eCount}`, W - 20, 42);
+      ctx.fillText(`${displayCount}`, W - 20, 42);
       ctx.font = 'bold 13px monospace';
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.fillText('ENEMIES', W - 20, 56);
+      ctx.fillText('REMAINING', W - 20, 56);
       ctx.textAlign = 'left';
 
-      /* wave indicator (bottom-left) */
-      const waveColor = gs.wave === 1 ? '#22c55e' : gs.wave === 2 ? '#f59e0b' : '#ef4444';
-      const waveLabel = gs.wave === 1 ? 'WAVE 1 — EASY' : gs.wave === 2 ? 'WAVE 2 — MEDIUM' : 'WAVE 3 — HARD';
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      roundRect(ctx, 18, H - 34, 174, 22, 5); ctx.fill();
-      ctx.fillStyle = waveColor;
-      ctx.font = 'bold 12px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(waveLabel, 26, H - 18);
-
-      /* wave announcement banner (fades in & out) */
-      if (gs.waveAnnounceTimer > 0) {
-        const bannerAlpha = Math.min(1, (3.0 - gs.waveAnnounceTimer) / 0.4, gs.waveAnnounceTimer / 0.4);
+      /* boss appears banner (fades in & out) */
+      if (gs.bossSpawned && gs.waveAnnounceTimer > 0) {
+        const bannerAlpha = Math.min(1, (3.5 - gs.waveAnnounceTimer) / 0.4, gs.waveAnnounceTimer / 0.4);
         ctx.save();
         ctx.globalAlpha = Math.max(0, bannerAlpha);
-        ctx.fillStyle = 'rgba(0,0,0,0.78)';
-        roundRect(ctx, W / 2 - 200, H / 2 - 36, 400, 72, 12); ctx.fill();
-        ctx.fillStyle = waveColor;
-        ctx.font = 'bold 26px monospace';
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        roundRect(ctx, W / 2 - 220, H / 2 - 42, 440, 84, 12); ctx.fill();
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 32px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(waveLabel, W / 2, H / 2 - 6);
-        const subText = gs.wave === 1 ? 'Normal damage' : gs.wave === 2 ? '+35% enemy damage' : gs.bossSpawned ? '+75% damage — Boss is here!' : '+75% damage — Boss incoming!';
+        ctx.fillText('⚠  BOSS APPEARS  ⚠', W / 2, H / 2 - 4);
         ctx.font = '13px monospace';
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.fillText(subText, W / 2, H / 2 + 18);
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.fillText('The Minotaur has arrived — +75% enemy damage', W / 2, H / 2 + 24);
         ctx.restore();
       }
 
@@ -1455,7 +1449,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
                 const ady = p.y - e.y;
                 const alen = Math.sqrt(adx * adx + ady * ady) || 1;
                 if (alen <= SKELETON_ATTACK_RANGE && !p.shieldActive && !p.dashActive) {
-                  const wm = gs.wave === 1 ? 1.0 : gs.wave === 2 ? 1.35 : 1.75;
+                  const wm = gs.wave === 3 ? 1.75 : 1.175;
                   p.hp -= Math.round(SKELETON_CONTACT_DAMAGE * wm);
                   if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
                 }
@@ -1592,7 +1586,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
                 const ady  = p.y - e.y;
                 const alen = Math.sqrt(adx * adx + ady * ady) || 1;
                 if (alen <= MINOTAUR_BOSS_ATTACK_RANGE + PLAYER_RADIUS && !p.shieldActive && !p.dashActive) {
-                  const wm = gs.wave === 1 ? 1.0 : gs.wave === 2 ? 1.35 : 1.75;
+                  const wm = gs.wave === 3 ? 1.75 : 1.175;
                   p.hp -= Math.round(MINOTAUR_BOSS_CONTACT_DAMAGE * wm);
                   if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
                 }
@@ -1633,7 +1627,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
                 const dy  = p.y - e.y;
                 const len = Math.sqrt(dx * dx + dy * dy) || 1;
                 if (len < CONTACT_RADIUS + 50 && !p.shieldActive && !p.dashActive) {
-                  const wm = gs.wave === 1 ? 1.0 : gs.wave === 2 ? 1.35 : 1.75;
+                  const wm = gs.wave === 3 ? 1.75 : 1.175;
                   const base = e.type === 'boss' ? BOSS_DAMAGE : ENEMY_DAMAGE;
                   p.hp -= Math.round(base * wm);
                   if (p.hp <= 0) {
@@ -1660,12 +1654,17 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       /* ── remove finished enemies ── */
       gs.enemies = gs.enemies.filter(e => {
         if (e.state !== 'dead') return true;
-        if (e.type === 'skeleton') return false;    // dying → dead transition means fully done
-        if (e.type === 'mage') return false;         // same: dead = animation finished
-        if (e.type === 'kitsune') return false;      // same: dead = animation finished
-        if (e.type === 'minotaur_boss') return false; // same: dead = animation finished
-        // knight: dead state plays anim then holds last frame → remove at last frame
-        return e.frameIndex < KNIGHT_ANIM_CONFIG.dead.frames - 1;
+        const isBoss = e.type === 'boss' || e.type === 'minotaur_boss';
+        if (e.type === 'skeleton' || e.type === 'mage' || e.type === 'kitsune' || e.type === 'minotaur_boss') {
+          if (!isBoss) gs.killCount++;
+          return false;
+        }
+        // knight: wait for last frame of death anim
+        if (e.frameIndex >= KNIGHT_ANIM_CONFIG.dead.frames - 1) {
+          if (!isBoss) gs.killCount++;
+          return false;
+        }
+        return true;
       });
 
       /* ── victory: kill all enemies (after boss has spawned) ── */
@@ -1692,7 +1691,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
             proj.done = true;
             burst(gs, proj.x, proj.y, '#ce93d8', 4);
             if (!p.shieldActive && !p.dashActive) {
-              const wm = gs.wave === 1 ? 1.0 : gs.wave === 2 ? 1.35 : 1.75;
+              const wm = gs.wave === 3 ? 1.75 : 1.175;
               p.hp -= Math.round(MAGE_PROJECTILE_DAMAGE * wm);
               if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
             }
@@ -1719,7 +1718,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
             if (perpDist < KITSUNE_BEAM_WIDTH + PLAYER_RADIUS) {
               beam.damageDealt = true;
               burst(gs, p.x, p.y, '#42a5f5', 5);
-              const wm = gs.wave === 1 ? 1.0 : gs.wave === 2 ? 1.35 : 1.75;
+              const wm = gs.wave === 3 ? 1.75 : 1.175;
               p.hp -= Math.round(KITSUNE_BEAM_DAMAGE * wm);
               if (p.hp <= 0) { p.hp = 0; transitionState(p, 'dead'); }
             }
@@ -1728,18 +1727,14 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       }
       gs.kitsuneBeams = gs.kitsuneBeams.filter(b => b.life > 0);
 
-      /* ── wave tracking ── */
-      const elapsed = GAME_DURATION - gs.timer;
-      const newWave: 1 | 2 | 3 = elapsed < WAVE_EASY_END ? 1 : elapsed < WAVE_MEDIUM_END ? 2 : 3;
-      if (newWave !== gs.wave) {
-        gs.wave = newWave;
-        gs.waveAnnounceTimer = 3.0;
-      }
+      /* ── wave / boss tracking ── */
       if (gs.waveAnnounceTimer > 0) gs.waveAnnounceTimer -= dt;
 
-      /* ── boss spawn (once at BOSS_SPAWN_ELAPSED seconds) ── */
-      if (!gs.bossSpawned && elapsed >= BOSS_SPAWN_ELAPSED) {
+      /* ── boss spawn (after BOSS_SPAWN_KILLS pre-boss kills) ── */
+      if (!gs.bossSpawned && gs.killCount >= BOSS_SPAWN_KILLS) {
         gs.bossSpawned = true;
+        gs.wave = 3;
+        gs.waveAnnounceTimer = 3.5;
         gs.minotaurRageTimer = MINOTAUR_RAGE_DELAY;
         spawnEnemy(gs, now, 'minotaur_boss');
       }
@@ -1785,10 +1780,9 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false }) => {
       }
 
       /* ── spawn (stops once boss has spawned) ── */
-      const spawnInterval = gs.wave === 2 ? 3000 : 4500;
-      if (!gs.bossSpawned && now - gs.lastSpawn > spawnInterval) {
+      if (!gs.bossSpawned && now - gs.lastSpawn > 3000) {
         spawnEnemy(gs, now);
-        if (gs.wave === 2 && Math.random() < 0.70) spawnEnemy(gs, now); // bonus spawn for wave 2
+        if (Math.random() < 0.70) spawnEnemy(gs, now); // 70% bonus spawn
       }
 
       /* ── player HP regen (2 hp/s, capped at max) ── */
