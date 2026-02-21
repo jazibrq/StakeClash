@@ -32,10 +32,10 @@ const RouteAudioManager = () => {
   useEffect(() => {
     try {
       ghostMusic.load();
-    } catch (e) {}
+    } catch (e) { }
     try {
       reckoningMusic.load();
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ const RouteAudioManager = () => {
     let cleaned = false;
     const resume = () => {
       if (cleaned) return;
-      active.play().catch(() => {});
+      active.play().catch(() => { });
     };
 
     active.play().catch(() => {
@@ -78,20 +78,20 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <WalletProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <RouteAudioManager />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/fortress" element={<Fortress />} />
-          <Route path="/clash" element={<Clash />} />
-          <Route path="/learn" element={<Learn />} />
-          <Route path="/hero" element={<Hero />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <RouteAudioManager />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/fortress" element={<Fortress />} />
+            <Route path="/clash" element={<Clash />} />
+            <Route path="/learn" element={<Learn />} />
+            <Route path="/hero" element={<Hero />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
       </WalletProvider>
     </TooltipProvider>
   </QueryClientProvider>
