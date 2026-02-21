@@ -60,6 +60,7 @@ const EMPTY_DATA: PlayerData = {
 /* ─── localStorage helpers ───────────────────────────────────────── */
 
 const STORAGE_PREFIX = 'stakeclash_player_';
+const DATA_VERSION   = 2; // bump when data shape changes to auto-clear stale cache
 
 function storageKey(address: string): string {
   return `${STORAGE_PREFIX}${address.toLowerCase()}`;
@@ -70,6 +71,10 @@ function loadPlayerData(address: string): PlayerData {
     const raw = localStorage.getItem(storageKey(address));
     if (!raw) return { ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances }, matchHistory: DUMMY_MATCHES };
     const parsed = JSON.parse(raw);
+    // Stale data from before versioning was added → wipe and seed dummies
+    if (!parsed.__v || parsed.__v < DATA_VERSION) {
+      return { ...EMPTY_DATA, vaultBalances: { ...EMPTY_DATA.vaultBalances }, matchHistory: DUMMY_MATCHES };
+    }
     return {
       vaultBalances: { ...EMPTY_DATA.vaultBalances, ...parsed.vaultBalances },
       vaultActivity: Array.isArray(parsed.vaultActivity) ? parsed.vaultActivity : [],
@@ -84,7 +89,7 @@ function loadPlayerData(address: string): PlayerData {
 
 function savePlayerData(address: string, data: PlayerData): void {
   try {
-    localStorage.setItem(storageKey(address), JSON.stringify(data));
+    localStorage.setItem(storageKey(address), JSON.stringify({ ...data, __v: DATA_VERSION }));
   } catch {
     // storage full — silently fail
   }
