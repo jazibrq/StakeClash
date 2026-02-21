@@ -8,7 +8,7 @@ import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
 import wasdGif from '@/assets/Spritesheets/wasd-tutorial.gif';
 
-type Phase = 'search' | 'selecting' | 'playing';
+type Phase = 'search' | 'searching' | 'selecting' | 'playing';
 
 /* ── Animated sprite canvas ── */
 const AnimatedSprite = ({
@@ -151,7 +151,9 @@ const Clash = () => {
   );
 
   const handleSearch = useCallback(() => {
-    setPhase('selecting');
+    setPhase('searching');
+    const delay = 1200 + Math.random() * 800; // 1.2–2s
+    setTimeout(() => setPhase('selecting'), delay);
   }, []);
 
   const handlePlay = useCallback(() => {
@@ -173,6 +175,64 @@ const Clash = () => {
       <VideoBackground videoSrc="/videos/grimbackground.mp4" />
       <GrainOverlay />
       <Navigation forceWhiteNavText />
+
+      {/* ── Searching / matchmaking loading screen ── */}
+      {phase === 'searching' && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          zIndex: 10, gap: '24px',
+        }}>
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: '24px',
+            background: 'linear-gradient(180deg, rgba(127,29,29,0.40), rgba(35,8,8,0.88))',
+            border: '1px solid rgba(239,68,68,0.46)',
+            borderRadius: '18px',
+            padding: '48px 72px',
+            boxShadow: '0 0 52px rgba(239,68,68,0.30), 0 8px 40px rgba(0,0,0,0.72)',
+          }}>
+          {/* Spinning ring */}
+          <div style={{
+            width: 72, height: 72,
+            borderRadius: '50%',
+            border: '3px solid rgba(239,68,68,0.15)',
+            borderTop: '3px solid #ef4444',
+            animation: 'clash-spin 0.9s linear infinite',
+            boxShadow: '0 0 24px rgba(239,68,68,0.35)',
+          }} />
+          <div style={{
+            fontFamily: 'monospace', fontSize: '13px',
+            letterSpacing: '4px', color: 'rgba(255,255,255,0.75)',
+          }}>
+            FINDING MATCH
+          </div>
+          {/* Animated dots */}
+          <div style={{
+            display: 'flex', gap: '8px',
+          }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: '#ef4444',
+                animation: `clash-pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+              }} />
+            ))}
+          </div>
+          <style>{`
+            @keyframes clash-spin {
+              to { transform: rotate(360deg); }
+            }
+            @keyframes clash-pulse {
+              0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+              40% { opacity: 1; transform: scale(1.2); }
+            }
+          `}</style>
+          </div>
+        </div>
+      )}
 
       {/* ── Search phase ── */}
       {phase === 'search' && (
