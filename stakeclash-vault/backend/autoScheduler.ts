@@ -1,9 +1,11 @@
 import * as dotenv from "dotenv";
-dotenv.config();
+import * as path from "path";
+dotenv.config({ path: path.join(__dirname, "../.env") });
+
+import { sendEth } from "../../src/eth";
 
 import * as http from "http";
 import * as fs from "fs";
-import * as path from "path";
 
 import {
   Client,
@@ -71,6 +73,38 @@ interface Deposit {
   amountTinybars:  number;
 }
 const deposits = new Map<string, Deposit>();
+
+// ── ETH deposit ledger ─────────────────────────────────────────────────────
+// evmAddress (lowercase) → total wei deposited on Sepolia for this session.
+// Persisted to disk so restarts don't lose pending refunds.
+const ETH_DEPOSITS_FILE = path.join(__dirname, "ethDeposits.json");
+
+function loadEthDeposits(): Map<string, bigint> {
+  try {
+    if (fs.existsSync(ETH_DEPOSITS_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(ETH_DEPOSITS_FILE, "utf8")) as Record<string, string>;
+      const map = new Map<string, bigint>();
+      for (const [k, v] of Object.entries(raw)) map.set(k, BigInt(v));
+      console.log(`[ETH] Loaded ${map.size} pending ETH deposit(s) from disk.`);
+      return map;
+    }
+  } catch (err) {
+    console.warn("[ETH] Could not load ethDeposits.json:", (err as Error).message);
+  }
+  return new Map();
+}
+
+function saveEthDeposits(map: Map<string, bigint>): void {
+  try {
+    const obj: Record<string, string> = {};
+    for (const [k, v] of map) obj[k] = v.toString();
+    fs.writeFileSync(ETH_DEPOSITS_FILE, JSON.stringify(obj, null, 2));
+  } catch (err) {
+    console.warn("[ETH] Could not save ethDeposits.json:", (err as Error).message);
+  }
+}
+
+const ethDeposits = loadEthDeposits();
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 async function getEvmAddress(accountId: string): Promise<string> {
@@ -207,7 +241,34 @@ async function poll(): Promise<void> {
       if (tx.result !== "SUCCESS")          continue;
       if (processed.has(tx.transaction_id)) continue;
 
-      // Treasury must have received HBAR
+      // Treasury outgoing refund (scheduled tx executed) → mirror on Sepolia
+      const treasuryOut = tx.transfers.find(
+        t => t.account === TREASURY_ID.toString() && t.amount < 0
+      );
+      if (treasuryOut) {
+        const recipientTransfer = tx.transfers.find(t => {
+          if (t.amount <= 0 || t.account === TREASURY_ID.toString()) return false;
+          return parseInt(t.account.split(".")[2], 10) >= 1000;
+        });
+        if (recipientTransfer) {
+          processed.add(tx.transaction_id);
+          const evmAddress = await getEvmAddress(recipientTransfer.account);
+          console.log(`[REFUND] Hedera account: ${recipientTransfer.account}, EVM address: ${evmAddress}`);
+          console.log(`[REFUND] ethDeposits map:`, Array.from(ethDeposits.entries()).map(([k, v]) => `${k}=${v}`));
+          const ethWei = ethDeposits.get(evmAddress.toLowerCase());
+          if (ethWei) {
+            ethDeposits.delete(evmAddress.toLowerCase());
+            saveEthDeposits(ethDeposits);
+            console.log(`[REFUND] Match found — sending ${ethWei} wei on Sepolia to ${evmAddress}`);
+            await sendEth(evmAddress, ethWei);
+          } else {
+            console.log(`[REFUND] No ETH deposit on record for ${evmAddress.toLowerCase()} — skipping Sepolia send`);
+          }
+        }
+        continue;
+      }
+
+      // Treasury must have received HBAR (deposit)
       const treasuryIn = tx.transfers.find(
         t => t.account === TREASURY_ID.toString() && t.amount > 0
       );
@@ -248,11 +309,34 @@ const server = http.createServer(async (req, res) => {
 
   // CORS — allow the frontend to call from any origin in dev
   res.setHeader("Access-Control-Allow-Origin",  "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  // POST /record-eth-deposit — frontend reports a successful Sepolia ETH deposit
+  if (req.method === "POST" && url.pathname === "/record-eth-deposit") {
+    const body: Buffer[] = [];
+    req.on("data", chunk => body.push(chunk));
+    req.on("end", () => {
+      try {
+        const { address, amountWei } = JSON.parse(Buffer.concat(body).toString());
+        const key  = (address as string).toLowerCase();
+        const prev = ethDeposits.get(key) ?? 0n;
+        ethDeposits.set(key, prev + BigInt(amountWei));
+        saveEthDeposits(ethDeposits);
+        console.log(`[ETH] Recorded deposit — ${address}: ${amountWei} wei (total: ${ethDeposits.get(key)})`);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: (err as Error).message }));
+      }
+    });
     return;
   }
 
