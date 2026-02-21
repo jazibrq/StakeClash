@@ -22,16 +22,69 @@ StakeClash enables:
 
 # Architecture
 
-## Components
-
-**Frontend (React / Next.js)**
-Wallet connection · Deposits · Season controls · Schedule lifecycle UI
-
-**Smart Contracts**
-Deposit accounting · Season state machine · Deterministic schedule creation · Reward logic
-
-**Hedera Network**
-Finality · Native schedule storage · Automated execution
+```
++---------------------+
+|        USER         |
++---------------------+
+           |
+           v
++---------------------+
+|     FRONTEND        |
+|  (React / Next.js)  |
+|---------------------|
+| - Deposit UI        |
+| - Season Controls   |
+| - Schedule Status   |
++---------------------+
+           |
+           v
++---------------------+
+|       WALLET        |
+|  (EVM Compatible)   |
+|---------------------|
+| - Sign Transactions |
+| - Auth              |
++---------------------+
+           |
+           v
++---------------------+
+|   SMART CONTRACTS   |
+| (Solidity on EVM)   |
+|---------------------|
+| - Deposit Logic     |
+| - Season Engine     |
+| - Payout Calc       |
+| - Schedule Creation |
++---------------------+
+           |
+           v
++------------------------------+
+|        HEDERA NETWORK        |
+|------------------------------|
+| - Finality                   |
+| - Native Schedule Storage    |
+| - Automated Execution Engine |
+| - Expiration Handling        |
++------------------------------+
+           |
+           v
++---------------------+
+|     MIRROR NODE     |
+|---------------------|
+| - Schedule Status   |
+| - Tx Records        |
+| - UI Sync           |
++---------------------+
+           |
+           v
++---------------------+
+|     FRONTEND UI     |
+|---------------------|
+| created             |
+| pending             |
+| executed / failed   |
++---------------------+
+```
 
 StakeClash integrates directly with **Hedera Schedule Service** for contract-driven automation.
 
@@ -39,34 +92,28 @@ StakeClash integrates directly with **Hedera Schedule Service** for contract-dri
 
 # Core Flow
 
-## 1. Deposit
+1. **Deposit**
+   User deposits HBAR. Deposit is recorded in contract state.
 
-Users deposit HBAR to the treasury. Deposits are recorded in contract state.
+2. **Season Initialization**
+   Contract:
 
-## 2. Season Initialization
+   * Iterates eligible players
+   * Computes payouts
+   * Creates scheduled transactions
+   * Stores Schedule IDs
 
-The contract:
+   Scheduling is initiated from contract logic — not backend scripts.
 
-* Iterates eligible players
-* Computes payouts
-* Creates scheduled transactions via Hedera system contracts
-* Stores Schedule IDs on-chain
+3. **Automated Execution**
+   Hedera:
 
-Scheduling is initiated from contract logic — not backend scripts.
+   * Tracks readiness
+   * Executes deterministically
+   * Expires invalid schedules
+   * Emits execution records
 
-## 3. Automated Execution
-
-Hedera:
-
-* Tracks signature readiness
-* Executes deterministically
-* Expires invalid schedules
-* Emits execution records
-
-UI lifecycle:
-created → pending → executed / failed
-
-All states are verifiable via mirror node.
+All lifecycle states are verifiable via mirror node queries.
 
 ---
 
@@ -74,28 +121,27 @@ All states are verifiable via mirror node.
 
 ## How StakeClash Fulfills It
 
-### Self-Running Application
+**Self-Running Application**
 
 * Payout schedules created from contract logic
 * No cron jobs
-* No keepers
+* No keeper bots
 * No off-chain execution triggers
-* Network handles readiness and finalization
 
-### Contract-Driven Scheduling
+**Contract-Driven Scheduling**
 
-* Created during season transitions
-* Authorization encoded in contract state
+* Triggered during season transitions
+* Authorization enforced in contract state
 * Invalid states cannot generate schedules
 
-### Deterministic Execution
+**Deterministic Execution**
 
 * Each payout wrapped in scheduled transaction
 * Expiration defined at creation
 * `.setWaitForExpiry(true)` ensures predictable timing
 * Schedule IDs stored and exposed
 
-### Edge Case Handling
+**Edge Case Handling**
 
 * Insufficient treasury balance
 * Expired schedules
@@ -103,11 +149,7 @@ All states are verifiable via mirror node.
 * Replay prevention
 * Invalid transitions
 
-Failure states are observable and recoverable.
-
-### Observability
-
-UI exposes:
+**Observability**
 
 * Schedule ID
 * Creation timestamp
@@ -115,18 +157,7 @@ UI exposes:
 * Expiration status
 * Linked transaction records
 
-All outcomes independently verifiable via mirror node queries.
-
-### Automation Use Case
-
-StakeClash demonstrates:
-
-* Competitive yield distribution
-* Season-based disbursements
-* Deterministic financial flows
-* Recurring automated reward cycles
-
-This validates Hedera-native automation without off-chain orchestration.
+All outcomes independently verifiable via mirror node.
 
 ---
 
