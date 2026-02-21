@@ -72,9 +72,12 @@ const Fortress = () => {
   const player = usePlayerData(wallet?.address ?? null);
 
   const [modalType, setModalType]   = useState<'deposit' | 'withdraw' | null>(null);
-  const [fortressState, setFortressState] = useState<FortressState>({
-    resources: INITIAL_RESOURCES,
-    levels: INITIAL_LEVELS,
+  const [fortressState, setFortressState] = useState<FortressState>(() => {
+    try {
+      const raw = localStorage.getItem(SHARED_RESOURCES_KEY);
+      if (raw) return { resources: JSON.parse(raw), levels: INITIAL_LEVELS };
+    } catch { /* ignore */ }
+    return { resources: INITIAL_RESOURCES, levels: INITIAL_LEVELS };
   });
   const [earnedRates, setEarnedRates] = useState<Partial<Record<Resource, number>>>({});
   const [selectedAsset, setSelectedAsset] = useState<VaultAsset>('ETH');
