@@ -100,7 +100,7 @@ const COLUMNS = [
     glow: 'rgba(234,179,8,0.35)',
     border: 'rgba(234,179,8,0.4)',
     wallet: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
-    heroName: 'Minotaur',
+    heroName: 'Gold Keeper',
     heroOffsetX: 0,
     heroScale: 1.9,
     heroSize: 112,

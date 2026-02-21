@@ -22,6 +22,9 @@ interface Player extends Vec2 {
   dashActive:     boolean;
   dashTimer:      number;    // ms of dash remaining
   dashCooldown:   number;    // ms until dash can be used again
+  form:           'base' | 'bladestorm_form';
+  formTimer:      number;    // seconds remaining on bladestorm form
+  formPermanent:  boolean;   // form persists forever after clash win
 }
 
 interface Enemy extends Vec2 {
@@ -96,8 +99,10 @@ type PlayerSprites   = Record<PState, HTMLImageElement | null>;
 type KnightSprites   = Record<'running' | 'attacking' | 'dead', HTMLImageElement | null>;
 type MageSprites     = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
 type SkeletonSprites = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
-type KitsuneSprites     = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
-type MinotaurBossSprites = Record<'walk' | 'attack' | 'death', HTMLImageElement | null>;
+type KitsuneSprites      = Record<'run' | 'attack' | 'death', HTMLImageElement | null>;
+type MinotaurBossSprites  = Record<'walk' | 'attack' | 'death', HTMLImageElement | null>;
+type FormAnimKey    = 'idle' | 'run' | 'attack' | 'death';
+type FormSprites    = Record<FormAnimKey, HTMLImageElement | null>;
 
 /* ─── constants ─────────────────────────────────────────────── */
 
@@ -187,6 +192,21 @@ const ANIM_CONFIG: Record<PState, { frames: number; frameDuration: number; loop:
   dead:      { frames: 6, frameDuration: 100, loop: false },
 };
 const MELEE_DAMAGE_START_FRAME = 3; // 0-indexed: damage on last frame of 4-frame attack
+
+/* ── bladestorm form anim config (vertical sprite sheets) ── */
+const FORM_ANIM_CONFIG: Record<FormAnimKey, { frames: number; frameDuration: number; loop: boolean }> = {
+  idle:   { frames: 5, frameDuration: 120, loop: true  },
+  run:    { frames: 8, frameDuration: 80,  loop: true  },
+  attack: { frames: 5, frameDuration: 70,  loop: false },
+  death:  { frames: 6, frameDuration: 100, loop: false },
+};
+const FORM_ATTACK_DAMAGE_FRAME = 4; // 0-indexed: last frame of 5-frame attack
+const FORM_SPRITE_FILE: Record<FormAnimKey, string> = {
+  idle:   'Idle',
+  run:    'Run',
+  attack: 'Attack',
+  death:  'Dead',
+};
 
 /* ── knight anim config ── */
 const KNIGHT_ANIM_CONFIG: Record<'running' | 'attacking' | 'dead', { frames: number; frameDuration: number; loop: boolean }> = {
@@ -294,6 +314,14 @@ const minotaurBossAnimKey = (state: EState): 'walk' | 'attack' | 'death' => {
   return 'walk';
 };
 
+/** Maps PState → bladestorm form sprite/anim key */
+const formAnimKey = (state: PState): FormAnimKey => {
+  if (state === 'running')   return 'run';
+  if (state === 'attacking') return 'attack';
+  if (state === 'dead')      return 'death';
+  return 'idle';
+};
+
 /* ─── Victory rewards animation ─────────────────────────────── */
 
 const VICTORY_REWARDS = [
@@ -383,6 +411,9 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
   const skeletonSpritesRef = useRef<SkeletonSprites>({ run: null, attack: null, death: null });
   const kitsuneSpritesRef      = useRef<KitsuneSprites>({ run: null, attack: null, death: null });
   const minotaurBossSpritesRef  = useRef<MinotaurBossSprites>({ walk: null, attack: null, death: null });
+  const formSpritesRef           = useRef<FormSprites>({ idle: null, run: null, attack: null, death: null });
+  const prayerImgRef             = useRef<HTMLImageElement | null>(null);
+  const prayerAlphaRef           = useRef(0);
   const rageVideoRef    = useRef<HTMLVideoElement | null>(null);
   const rageActiveRef   = useRef(false);
   const ultClashVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -448,6 +479,20 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
     bg.onload  = () => { bgImageRef.current = bg; };
     bg.onerror = () => { bgImageRef.current = null; };
 
+    // load bladestorm form sprites (vertical sheets)
+    (Object.keys(FORM_SPRITE_FILE) as FormAnimKey[]).forEach(key => {
+      const img = new Image();
+      img.src = `/heroes/samurai_commander_form/${FORM_SPRITE_FILE[key]}.png`;
+      img.onload  = () => { formSpritesRef.current[key] = img; };
+      img.onerror = () => { formSpritesRef.current[key] = null; };
+    });
+
+    // load prayer cast pose
+    const prayerImg = new Image();
+    prayerImg.src = '/heroes/prayer.png';
+    prayerImg.onload  = () => { prayerImgRef.current = prayerImg; };
+    prayerImg.onerror = () => { prayerImgRef.current = null; };
+
     // preload bladestorm video
     const bsVideo = document.createElement('video');
     bsVideo.src = '/videos/bladestorm.mp4';
@@ -485,6 +530,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
       attackCooldown: 0, facing: 1, damageDealt: false,
       shieldActive: false, shieldTimer: 0, shieldCooldown: 0,
       dashActive: false, dashTimer: 0, dashCooldown: 0,
+      form: 'base', formTimer: 0, formPermanent: false,
     },
     enemies: [], particles: [], enemyProjectiles: [], kitsuneBeams: [],
     keys: {}, timer: GAME_DURATION,
@@ -505,6 +551,12 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
     bladestormChargeRef.current = 0;  // consume full bar
     bladestormActiveRef.current = true;
     setBladestormPlaying(true);
+    // activate bladestorm form
+    gs.player.form        = 'bladestorm_form';
+    gs.player.formTimer   = 10.0;
+    gs.player.frameIndex  = 0;
+    gs.player.animTimer   = 0;
+    gs.player.hp          = PLAYER_MAX_HP; // full heal on activation
 
     // play video — enemies are killed when it finishes
     const vid = bladestormVideoRef.current;
@@ -631,14 +683,18 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
     void drawGrid; // defined but intentionally unused
 
     const drawPlayer = (p: Player) => {
-      const cfg = ANIM_CONFIG[p.state];
-      const img = playerSpritesRef.current[p.state];
+      const isForm = p.form === 'bladestorm_form';
+      const fKey   = isForm ? formAnimKey(p.state) : null;
+      const cfg    = isForm ? FORM_ANIM_CONFIG[fKey!] : ANIM_CONFIG[p.state];
+      const img    = isForm ? formSpritesRef.current[fKey!] : playerSpritesRef.current[p.state];
       const half = RENDER_SIZE / 2;
 
       /* Madden/2K-style ground ring under player feet */
+      // ring center — shared with prayer overlay
+      const ringX = isForm ? p.x - 14 * p.facing : p.x - 38 * p.facing;
+      const ringY = p.y + RENDER_SIZE * 0.50;
       {
-        const footX = p.x - 38 * p.facing;
-        const footY = p.y + RENDER_SIZE * 0.50;
+        if (prayerAlphaRef.current <= 0) {
         ctx.save();
         ctx.globalAlpha = 0.55;
         ctx.shadowColor = '#a8d8ff';
@@ -646,14 +702,15 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         // outer soft halo
         ctx.fillStyle = 'rgba(180,220,255,0.18)';
         ctx.beginPath();
-        ctx.ellipse(footX, footY, 34, 9, 0, 0, Math.PI * 2);
+        ctx.ellipse(ringX, ringY, 34, 9, 0, 0, Math.PI * 2);
         ctx.fill();
         // bright core ring
         ctx.fillStyle = 'rgba(220,240,255,0.7)';
         ctx.beginPath();
-        ctx.ellipse(footX, footY, 22, 5, 0, 0, Math.PI * 2);
+        ctx.ellipse(ringX, ringY, 22, 5, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+        }
       }
 
       /* crisp pixel-art stutter: flip ±1.5px every 50ms for DASH_DURATION */
@@ -662,15 +719,13 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         : 0;
 
       if (img && img.complete && img.naturalWidth > 0) {
-        const frameW = img.width / cfg.frames;
         ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - prayerAlphaRef.current); // fade out behind prayer
         ctx.translate(p.x + jitterX, p.y);
         if (p.facing === -1) ctx.scale(-1, 1);
-        ctx.drawImage(
-          img,
-          p.frameIndex * frameW, 0, frameW, img.height,
-          -half, -half, RENDER_SIZE, RENDER_SIZE,
-        );
+        // both base and form sprites are horizontal strips
+        const frameW = img.width / cfg.frames;
+        ctx.drawImage(img, p.frameIndex * frameW, 0, frameW, img.height, -half, -half, RENDER_SIZE, RENDER_SIZE);
         ctx.restore();
       } else {
         /* fallback: glowing circle */
@@ -712,6 +767,21 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         ctx.lineWidth   = 2;
         ctx.stroke();
         ctx.restore();
+      }
+
+      /* prayer sprite — drawn exactly like the base / bladestorm player sprite */
+      {
+        const pAlpha = prayerAlphaRef.current;
+        const pImg   = prayerImgRef.current;
+        if (pAlpha > 0 && pImg && pImg.complete && pImg.naturalWidth > 0) {
+          ctx.save();
+          ctx.globalAlpha = pAlpha;
+          const pSize = RENDER_SIZE * 0.7;
+          const pOffsetY = 65; // tweak: 48 puts bottom on ring, higher = lower on screen
+          ctx.translate(p.x + jitterX + 5, p.y - half + pOffsetY);
+          ctx.drawImage(pImg, -pSize / 2, 0, pSize, pSize);
+          ctx.restore();
+        }
       }
     };
 
@@ -957,7 +1027,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         ctx.fillStyle = enraged ? '#ffd700' : 'rgba(255,255,255,0.8)';
         ctx.font = 'bold 12px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('MINOTAUR BOSS', e.x, hpY - 5);
+        ctx.fillText('GOLD KEEPER', e.x, hpY - 5);
       }
     };
 
@@ -1142,7 +1212,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         ctx.fillText('⚠  BOSS APPEARS  ⚠', W / 2, H / 2 - 4);
         ctx.font = '13px monospace';
         ctx.fillStyle = 'rgba(255,255,255,0.65)';
-        ctx.fillText('The Minotaur has arrived — +75% enemy damage', W / 2, H / 2 + 24);
+        ctx.fillText('The Gold Keeper has arrived — +75% enemy damage', W / 2, H / 2 + 24);
         ctx.restore();
       }
 
@@ -1198,11 +1268,21 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
       if (p.shieldCooldown > 0) p.shieldCooldown -= dtMs;
       if (p.dashActive) {
         p.dashTimer -= dtMs;
-        if (p.dashTimer <= 0) { p.dashActive = false; p.dashCooldown = DASH_COOLDOWN; }
+        if (p.dashTimer <= 0) {
+          p.dashActive   = false;
+          p.dashCooldown = p.form === 'bladestorm_form' ? 0 : DASH_COOLDOWN;
+        }
       }
       if (p.dashCooldown > 0) p.dashCooldown -= dtMs;
-
-      /* ── state transitions (dead overrides all; attacking holds until complete) ── */
+      if (p.form === 'bladestorm_form' && !p.formPermanent) {
+        p.formTimer -= dt;
+        if (p.formTimer <= 0) {
+          p.form       = 'base';
+          p.formTimer  = 0;
+          p.frameIndex = 0;
+          p.animTimer  = 0;
+        }
+      }
       if (p.state !== 'dead' && p.state !== 'attacking') {
         const moving = gs.playerParalyzeTimer <= 0 && (
           gs.keys['KeyW'] || gs.keys['ArrowUp']   ||
@@ -1213,13 +1293,16 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
       }
 
       /* ── advance player animation ── */
-      const cfg = ANIM_CONFIG[p.state];
+      const cfg = p.form === 'bladestorm_form'
+        ? FORM_ANIM_CONFIG[formAnimKey(p.state)]
+        : ANIM_CONFIG[p.state];
       p.animTimer += dtMs;
       while (p.animTimer >= cfg.frameDuration) {
         p.animTimer -= cfg.frameDuration;
 
         /* melee burst fires on damage frame */
-        if (p.state === 'attacking' && p.frameIndex >= MELEE_DAMAGE_START_FRAME && !p.damageDealt) {
+        const dmgFrame = p.form === 'bladestorm_form' ? FORM_ATTACK_DAMAGE_FRAME : MELEE_DAMAGE_START_FRAME;
+        if (p.state === 'attacking' && p.frameIndex >= dmgFrame && !p.damageDealt) {
           p.damageDealt = true;
           for (const e of gs.enemies) {
             if (e.state === 'dead' || e.state === 'dying') continue;
@@ -1229,8 +1312,8 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
             if (dist2(p.x, p.y, e.x, e.y) < meleeReach ** 2) {
               burst(gs, e.x, e.y, '#fbbf24', 6);
               if (e.type === 'knight') {
-                // knights require 2 hits
-                e.hp -= 1;
+                // bladestorm form 1-shots knights; base takes 2 hits
+                e.hp -= p.form === 'bladestorm_form' ? 2 : 1;
                 if (e.hp <= 0) {
                   e.state      = 'dead';
                   e.frameIndex = 0;
@@ -1241,8 +1324,9 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
                   );
                 }
               } else if (e.type === 'minotaur_boss') {
-                // boss takes real damage per melee hit (~20 hits to kill)
-                e.hp -= MINOTAUR_BOSS_PLAYER_MELEE_DMG;
+                // boss takes real damage per melee hit; +20% in bladestorm form
+                const bossDmg = Math.round(MINOTAUR_BOSS_PLAYER_MELEE_DMG * (p.form === 'bladestorm_form' ? 1.20 : 1));
+                e.hp -= bossDmg;
                 // charge ultimate on every hit
                 bladestormChargeRef.current = Math.min(
                   BLADESTORM_CHARGE_MAX,
@@ -1289,8 +1373,8 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         }
       }
 
-      /* ── movement (locked while attacking, dead, paralyzed, or clashing) ── */
-      if (p.state !== 'attacking' && p.state !== 'dead' && gs.playerParalyzeTimer <= 0 && !gs.clashActive) {
+      /* ── movement (locked while attacking, dead, paralyzed, clashing, or casting bladestorm) ── */
+      if (p.state !== 'attacking' && p.state !== 'dead' && gs.playerParalyzeTimer <= 0 && !gs.clashActive && !bladestormActiveRef.current) {
         let mx = 0, my = 0;
         if (gs.keys['KeyW'] || gs.keys['ArrowUp'])    my -= 1;
         if (gs.keys['KeyS'] || gs.keys['ArrowDown'])  my += 1;
@@ -1300,8 +1384,9 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         else if (mx > 0) p.facing = 1;
         const mLen = Math.sqrt(mx * mx + my * my) || 1;
         if (mx !== 0 || my !== 0) {
-          p.vx = (mx / mLen) * PLAYER_SPEED;
-          p.vy = (my / mLen) * PLAYER_SPEED;
+          const speed = PLAYER_SPEED * (p.form === 'bladestorm_form' ? 1.35 : 1);
+          p.vx = (mx / mLen) * speed;
+          p.vy = (my / mLen) * speed;
         } else {
           p.vx *= 0.75; p.vy *= 0.75;
         }
@@ -1314,7 +1399,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
 
       /* ── enemy state machines + movement ── */
       if (p.state !== 'dead' && !bladestormActiveRef.current && !rageActiveRef.current && !clashActiveRef.current) {
-        const speed = (ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9) * (gs.wave === 2 ? 1.2 : 1.0);
+        const speed = (ENEMY_BASE_SPEED + (GAME_DURATION - gs.timer) * 0.9) * (gs.wave === 3 ? 1.2 : 1.0);
 
         for (const e of gs.enemies) {
           if (e.state === 'dying' || e.state === 'dead') continue;
@@ -1713,7 +1798,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         beam.length = Math.min(beam.maxLength, beam.length + KITSUNE_BEAM_SPEED * dt);
 
         /* collision: point-to-ray segment distance (only up to current length) */
-        if (!beam.damageDealt && p.state !== 'dead' && !p.shieldActive && !p.dashActive) {
+        if (!beam.damageDealt && p.state !== 'dead' && !p.shieldActive && !p.dashActive && !bladestormActiveRef.current) {
           const apx = p.x - beam.ox;
           const apy = p.y - beam.oy;
           const t   = apx * beam.dx + apy * beam.dy; // dot along ray
@@ -1793,7 +1878,12 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
 
       /* ── player HP regen (2 hp/s, capped at max) ── */
       if (p.state !== 'dead') {
-        p.hp = Math.min(PLAYER_MAX_HP, p.hp + 2 * dt);
+        // lock HP to max while bladestorm cast video is playing
+        if (bladestormActiveRef.current) {
+          p.hp = PLAYER_MAX_HP;
+        } else {
+          p.hp = Math.min(PLAYER_MAX_HP, p.hp + 2 * dt);
+        }
       }
 
       /* ── particles ── */
@@ -1857,6 +1947,13 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
         afterimageRef.current = afterimageRef.current.filter(ai => ai.alpha > 0);
       }
 
+      /* prayer cast overlay alpha — fade in while bladestorm active, fade out after */
+      if (bladestormActiveRef.current) {
+        prayerAlphaRef.current = Math.min(1, prayerAlphaRef.current + dt * 5); // 0→1 over ~0.2s
+      } else {
+        prayerAlphaRef.current = Math.max(0, prayerAlphaRef.current - dt * 3); // 1→0 over ~0.33s
+      }
+
       drawPlayer(p);
       drawHUD(gs);
 
@@ -1894,6 +1991,12 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
               bladestormSkipBossDmgRef.current = true;
               bladestormActiveRef.current = true;
               setBladestormPlaying(true);
+              // bladestorm form becomes permanent after clash win
+              gs.player.form          = 'bladestorm_form';
+              gs.player.formPermanent = true;
+              gs.player.frameIndex    = 0;
+              gs.player.animTimer     = 0;
+              gs.player.hp            = PLAYER_MAX_HP; // full heal on clash win
             }
           } else if (canAttack) {
             transitionState(p, 'attacking');
@@ -1949,8 +2052,9 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
           triggerBladestorm();
         }
       }
-      /* G → toggle fullscreen */
-      if (e.code === 'KeyG') {
+      /* G or F11 → toggle fullscreen */
+      if (e.code === 'KeyG' || e.code === 'F11') {
+        e.preventDefault();
         const root = rootRef.current;
         if (!document.fullscreenElement) root?.requestFullscreen();
         else document.exitFullscreen();
@@ -2152,7 +2256,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
             fontSize: '12px', fontFamily: 'monospace',
             letterSpacing: '1px',
           }}>
-            WASD move · SPACE attack · F shield · SHIFT dash · X bladestorm · G fullscreen
+            WASD / Arrows move · SPACE attack · F shield · SHIFT dash · X bladestorm · F11 fullscreen
           </div>
           <button
             onClick={() => setStarted(true)}
@@ -2184,7 +2288,7 @@ const RaidGame: React.FC<Props> = ({ onReturn, autoStart = false, onMatchEnd }) 
           userSelect: 'none', pointerEvents: 'none',
           letterSpacing: '0.5px',
         }}>
-          WASD move · SPACE attack · SHIFT shield · X bladestorm · F fullscreen
+          WASD / Arrows move · SPACE attack · F shield · SHIFT dash · X bladestorm · F11 fullscreen
         </div>
       )}
 
