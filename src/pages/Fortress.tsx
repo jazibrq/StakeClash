@@ -28,6 +28,7 @@ const Fortress = () => {
 
   const [modalType, setModalType]   = useState<'deposit' | 'withdraw' | null>(null);
   const [resources, setResources]   = useState<Resources>({ ore: 0, gold: 0, diamond: 0, mana: 0 });
+  const [earnedRates, setEarnedRates] = useState<Partial<Record<Resource, number>>>({});
 
   /* Accumulate resources over time (replaced by real wallet data when available) */
   useEffect(() => {
@@ -53,7 +54,11 @@ const Fortress = () => {
   const yieldEarned = '—'; // TODO: compute from on-chain yield
 
   const handleTransaction = (token: string, amount: number, txMode: 'deposit' | 'withdraw') => {
-    if (txMode === 'deposit')  player.recordDeposit(token, amount);
+    if (txMode === 'deposit') {
+      player.recordDeposit(token, amount);
+      if (token === 'HBAR') setEarnedRates(prev => ({ ...prev, ore:     (prev.ore     ?? 0) + amount * 100 }));
+      if (token === 'ETH')  setEarnedRates(prev => ({ ...prev, diamond: (prev.diamond ?? 0) + amount * 100 }));
+    }
     if (txMode === 'withdraw') player.recordWithdraw(token, amount);
   };
 
@@ -138,7 +143,12 @@ const Fortress = () => {
                     />
                     <span className="text-xs capitalize text-muted-foreground">{r}</span>
                   </div>
-                  <span className="font-mono text-xs">{Math.floor(resources[r])}</span>
+                  <div className="flex items-center gap-1.5">
+                    {earnedRates[r] != null && (
+                      <span className="text-[10px] font-mono text-primary">+{earnedRates[r]}/hr</span>
+                    )}
+                    <span className="font-mono text-xs">{Math.floor(resources[r])}</span>
+                  </div>
                 </div>
               ))}
             </div>

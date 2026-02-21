@@ -49,6 +49,22 @@ client.setOperator(OPERATOR_ID, OPERATOR_KEY);
 // ── Startup timestamp — only process txs from this point forward ───────────
 const START_TIMESTAMP = `${Math.floor(Date.now() / 1000)}.000000000`;
 
+// ── Log ring buffer — captured so the admin page can display them ──────────
+const LOG_BUFFER: string[] = [];
+const LOG_BUFFER_MAX = 200;
+const origLog = console.log.bind(console);
+const origError = console.error.bind(console);
+const origWarn = console.warn.bind(console);
+function pushLog(_level: string, args: unknown[]): void {
+  const ts = new Date().toISOString().slice(11, 19);
+  const line = `[${ts}] ${args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ")}`;
+  LOG_BUFFER.push(line);
+  if (LOG_BUFFER.length > LOG_BUFFER_MAX) LOG_BUFFER.shift();
+}
+console.log   = (...args: unknown[]) => { pushLog("LOG",   args); origLog(...args);   };
+console.error = (...args: unknown[]) => { pushLog("ERROR", args); origError(...args); };
+console.warn  = (...args: unknown[]) => { pushLog("WARN",  args); origWarn(...args);  };
+
 // ── Processed tx tracker ───────────────────────────────────────────────────
 const processed = new Set<string>();
 
@@ -376,6 +392,13 @@ const server = http.createServer(async (req, res) => {
     }));
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ count: list.length, deposits: list }));
+    return;
+  }
+
+  // GET /logs — return recent log lines for the admin UI
+  if (req.method === "GET" && url.pathname === "/logs") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ lines: [...LOG_BUFFER] }));
     return;
   }
 

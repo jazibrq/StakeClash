@@ -256,25 +256,54 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
         )}
 
         {/* ── Success step ── */}
-        {step === 'success' && (
-          <div className="p-8 text-center">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-              style={{ background: `${asset.color}20` }}
-            >
-              <CheckCircle className="w-7 h-7 text-emerald-400" />
+        {step === 'success' && (() => {
+          const isHbarDeposit = mode === 'deposit' && asset.symbol === 'HBAR';
+          const isEthDeposit  = mode === 'deposit' && asset.symbol === 'ETH';
+          const rate = (parseFloat(amount) * 100).toFixed(0);
+
+          return (
+            <div className="p-8 text-center">
+              {isHbarDeposit || isEthDeposit ? (
+                <img
+                  src={isHbarDeposit ? '/images/resources/orelogo.png' : '/images/resources/diamondlogo.png'}
+                  alt={isHbarDeposit ? 'Ore' : 'Diamond'}
+                  className="w-14 h-14 object-contain mx-auto mb-4"
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: `${asset.color}20` }}
+                >
+                  <CheckCircle className="w-7 h-7 text-emerald-400" />
+                </div>
+              )}
+
+              <p className="text-sm font-semibold mb-1">
+                {label} Successful
+              </p>
+
+              {isHbarDeposit && (
+                <p className="text-xs text-muted-foreground mb-5">
+                  You earned <span className="text-white font-semibold">{rate} ore/hour</span>
+                </p>
+              )}
+              {isEthDeposit && (
+                <p className="text-xs text-muted-foreground mb-5">
+                  You earned <span className="text-white font-semibold">{rate} diamonds/hour</span>
+                </p>
+              )}
+              {!isHbarDeposit && !isEthDeposit && (
+                <p className="text-xs text-muted-foreground mb-5">
+                  {amount} {asset.symbol} {mode === 'deposit' ? 'deposited into vault' : 'withdrawn from vault'}
+                </p>
+              )}
+
+              <Button onClick={handleClose} className="btn-cyan-gradient px-8 rounded-xl">
+                Done
+              </Button>
             </div>
-            <p className="text-sm font-semibold mb-1">
-              {label} Successful
-            </p>
-            <p className="text-xs text-muted-foreground mb-5">
-              {amount} {asset.symbol} {mode === 'deposit' ? 'deposited into vault' : 'withdrawn from vault'}
-            </p>
-            <Button onClick={handleClose} className="btn-cyan-gradient px-8 rounded-xl">
-              Done
-            </Button>
-          </div>
-        )}
+          );
+        })()}
       </ModalContent>
     </Modal>
   );
