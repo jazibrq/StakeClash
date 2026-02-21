@@ -1,8 +1,17 @@
+import { useRef, useEffect, useCallback } from 'react';
 import { Navigation } from '@/components/Navigation';
 import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { Footer } from '@/components/layout/Footer';
 import { PartnersBanner } from '@/components/home/PartnersBanner';
+import wKeyPng from '@/assets/Spritesheets/W.png';
+import aKeyPng from '@/assets/Spritesheets/A.png';
+import sKeyPng from '@/assets/Spritesheets/S.png';
+import dKeyPng from '@/assets/Spritesheets/D.png';
+import spaceKeyPng from '@/assets/Spritesheets/SPACE.png';
+import shiftKeyPng from '@/assets/Spritesheets/SHIFT.png';
+import fKeyPng from '@/assets/Spritesheets/F.png';
+import xKeyPng from '@/assets/Spritesheets/X.png';
 
 /* ─── small reusable pieces ─────────────────────────────── */
 
@@ -67,6 +76,216 @@ const Resource = ({
     </div>
   </div>
 );
+
+/* ── Canvas-based sprite components for controls reference ── */
+
+const AnimatedSprite = ({
+  src, frames, frameWidth, frameHeight, frameDuration = 150, size = 96,
+}: {
+  src: string; frames: number; frameWidth: number; frameHeight: number;
+  frameDuration?: number; size?: number;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef    = useRef<HTMLImageElement | null>(null);
+  const frameRef  = useRef(0);
+  const timerRef  = useRef(0);
+  const rafRef    = useRef(0);
+
+  const draw = useCallback(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    const img = imgRef.current;
+    if (!ctx || !img || !img.complete) return;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(img, frameRef.current * frameWidth, 0, frameWidth, frameHeight, 0, 0, size, size);
+  }, [frameWidth, frameHeight, size]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => { imgRef.current = img; draw(); };
+    imgRef.current = img;
+  }, [src, draw]);
+
+  useEffect(() => {
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = now - last; last = now;
+      timerRef.current += dt;
+      if (timerRef.current >= frameDuration) {
+        timerRef.current -= frameDuration;
+        frameRef.current = (frameRef.current + 1) % frames;
+        draw();
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [frames, frameDuration, draw]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{ imageRendering: 'pixelated', width: size, height: size, display: 'block' }}
+    />
+  );
+};
+
+/* ── Sprint: run animation with afterimage ghost trail ── */
+const DashAnim = ({ size = 96 }: { size?: number }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef    = useRef<HTMLImageElement | null>(null);
+  const frameRef  = useRef(0);
+  const timerRef  = useRef(0);
+  const rafRef    = useRef(0);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const img = imgRef.current;
+    ctx.clearRect(0, 0, size, size);
+    if (!img || !img.complete || !img.naturalWidth) return;
+    const sx = frameRef.current * 128;
+    // ghost copies shifted left (partially clipped at canvas edge)
+    const ghosts = [{ dx: -30, a: 0.12 }, { dx: -20, a: 0.25 }, { dx: -10, a: 0.42 }];
+    for (const g of ghosts) {
+      ctx.globalAlpha = g.a;
+      ctx.drawImage(img, sx, 0, 128, 128, g.dx, 0, size, size);
+    }
+    ctx.globalAlpha = 1;
+    ctx.drawImage(img, sx, 0, 128, 128, 0, 0, size, size);
+  }, [size]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/heroes/Run.png';
+    img.onload = () => { imgRef.current = img; draw(); };
+    imgRef.current = img;
+  }, [draw]);
+
+  useEffect(() => {
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = now - last; last = now;
+      timerRef.current += dt;
+      if (timerRef.current >= 60) {
+        timerRef.current -= 60;
+        frameRef.current = (frameRef.current + 1) % 8;
+        draw();
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [draw]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{ imageRendering: 'pixelated', width: size, height: size, display: 'block' }}
+    />
+  );
+};
+
+/* ── Shield: idle character + pulsing blue orb ── */
+const ShieldAnim = ({ size = 96, charOffsetX = 0 }: { size?: number; charOffsetX?: number }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef    = useRef(0);
+  const frameRef  = useRef(0);
+  const timerRef  = useRef(0);
+  const pulseRef  = useRef(0);
+  const imgRef    = useRef<HTMLImageElement | null>(null);
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, size, size);
+    const img = imgRef.current;
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, frameRef.current * 128, 0, 128, 128, charOffsetX, 0, size, size);
+    }
+    pulseRef.current += 0.03;
+    const pulse = 0.5 + 0.5 * Math.sin(pulseRef.current);
+    const cx = size / 2;
+    const cy = size * 0.60;
+    const radius = size * 0.27 + pulse * size * 0.03;
+    ctx.save();
+    ctx.shadowColor = '#1e88e5';
+    ctx.shadowBlur  = 22 + pulse * 8;
+    ctx.globalAlpha = 0.38 + pulse * 0.10;
+    ctx.fillStyle   = '#42a5f5';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = '#90caf9';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    ctx.restore();
+  }, [size, charOffsetX]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/heroes/Idle.png';
+    img.onload = () => { imgRef.current = img; draw(); };
+    imgRef.current = img;
+  }, [draw]);
+
+  useEffect(() => {
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = now - last; last = now;
+      timerRef.current += dt;
+      if (timerRef.current >= 130) {
+        timerRef.current -= 130;
+        frameRef.current = (frameRef.current + 1) % 6;
+      }
+      draw();
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [draw]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{ display: 'block', width: size, height: size, imageRendering: 'pixelated' }}
+    />
+  );
+};
+
+/* ── Pixel-art key image (static idle frame) ── */
+const KeySprite = ({
+  src, frameWidth, frameHeight, displayHeight,
+}: {
+  src: string; frameWidth: number; frameHeight: number; displayHeight: number;
+}) => {
+  const scale = displayHeight / frameHeight;
+  const width = Math.round(frameWidth * scale);
+  const bgW   = Math.round(frameWidth * scale * 2);
+  return (
+    <div
+      style={{
+        width,
+        height: displayHeight,
+        flexShrink: 0,
+        backgroundImage: `url(${src})`,
+        backgroundSize: `${bgW}px ${displayHeight}px`,
+        backgroundPosition: `-${width}px 0px`,
+        backgroundRepeat: 'no-repeat',
+        imageRendering: 'pixelated',
+      }}
+    />
+  );
+};
 
 const DiffCard = ({
   title, body,
@@ -258,6 +477,71 @@ const Learn = () => (
             the raid and eliminate enemies to earn charge for your ultimate abilities and a stronger
             position in the rewards pool.
           </p>
+
+          {/* ── Controls quick-reference ── */}
+          <div className="mt-8">
+            <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-1">Controls</p>
+            <h3 className="text-2xl font-bold text-foreground mb-3 leading-tight">How To Play</h3>
+            <div className="h-px mb-5" style={{ background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.5), transparent)' }} />
+            {/* Top row: Move, Attack, Sprint */}
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
+                <div style={{ transform: 'translateX(16px)' }}>
+                  <AnimatedSprite src="/heroes/Run.png" frames={8} frameWidth={128} frameHeight={128} frameDuration={100} size={96} />
+                </div>
+                <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    <KeySprite src={wKeyPng} frameWidth={17} frameHeight={16} displayHeight={38} />
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      <KeySprite src={aKeyPng} frameWidth={17} frameHeight={16} displayHeight={38} />
+                      <KeySprite src={sKeyPng} frameWidth={17} frameHeight={16} displayHeight={38} />
+                      <KeySprite src={dKeyPng} frameWidth={17} frameHeight={16} displayHeight={38} />
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Move</p>
+              </div>
+              <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
+                <div style={{ transform: 'translateX(6px)' }}>
+                  <AnimatedSprite src="/heroes/Attack.png" frames={4} frameWidth={128} frameHeight={128} frameDuration={100} size={96} />
+                </div>
+                <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <KeySprite src={spaceKeyPng} frameWidth={67} frameHeight={16} displayHeight={44} />
+                </div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Attack</p>
+              </div>
+              <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
+                <div style={{ transform: 'translateX(14px)' }}>
+                  <DashAnim size={96} />
+                </div>
+                <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <KeySprite src={shiftKeyPng} frameWidth={44} frameHeight={16} displayHeight={44} />
+                </div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Sprint</p>
+              </div>
+            </div>
+            {/* Bottom row: Shield, Ultimate — centered */}
+            <div className="grid grid-cols-2 gap-3" style={{ maxWidth: '67%', margin: '0 auto' }}>
+              <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
+                <div style={{ marginTop: 10 }}>
+                  <ShieldAnim size={96} charOffsetX={20} />
+                </div>
+                <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <KeySprite src={fKeyPng} frameWidth={17} frameHeight={16} displayHeight={44} />
+                </div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Shield</p>
+              </div>
+              <div className="card-surface rounded-xl p-4 flex flex-col items-center gap-2">
+                <div style={{ width: 96, height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {/* placeholder — ultimate animation coming */}
+                </div>
+                <div style={{ height: 76, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+                  <KeySprite src={xKeyPng} frameWidth={17} frameHeight={16} displayHeight={44} />
+                </div>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">Ultimate</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         <Divider />

@@ -20,7 +20,6 @@ export interface VaultAsset {
 const ASSETS: VaultAsset[] = [
   { symbol: 'ETH',  name: 'Ethereum',  color: '#627eea', icon: 'Ξ'  },
   { symbol: 'USDC', name: 'USD Coin',  color: '#2775ca', icon: '$'  },
-  { symbol: 'SOL',  name: 'Solana',    color: '#9945ff', icon: '◎'  },
   { symbol: 'HBAR', name: 'Hedera',    color: '#00e5ff', icon: '⬡'  },
 ];
 

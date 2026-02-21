@@ -6,8 +6,6 @@ import { Navigation } from '@/components/Navigation';
 import RaidGame from '@/components/RaidGame';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
-import wasdGif from '@/assets/Spritesheets/wasd-tutorial.gif';
-
 type Phase = 'search' | 'searching' | 'selecting' | 'playing';
 
 /* ── Animated sprite canvas ── */
@@ -238,118 +236,34 @@ const Clash = () => {
       {phase === 'search' && (
         <div style={{
           position: 'absolute', inset: 0,
-          overflowY: 'auto',
           display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'flex-start',
-          paddingTop: '120px', paddingBottom: '60px',
+          alignItems: 'center', justifyContent: 'center',
+          paddingLeft: '20px', paddingRight: '20px',
           zIndex: 10,
-          gap: '56px',
         }}>
-          {/* Search button */}
           <button
             onClick={handleSearch}
             style={{
-              padding: '22px 72px',
+              padding: '18px 58px',
               background: 'linear-gradient(135deg, #ef4444, #b91c1c)',
               border: 'none', borderRadius: '10px',
-              color: '#fff', fontSize: '15px',
-              fontWeight: 800, letterSpacing: '4px',
+              color: '#fff', fontSize: '14px',
+              fontWeight: 800, letterSpacing: '3px',
               cursor: 'pointer', fontFamily: 'monospace',
-              boxShadow: '0 0 60px rgba(239,68,68,0.40), 0 6px 28px rgba(0,0,0,0.7)',
+              boxShadow: '0 0 54px rgba(239,68,68,0.40), 0 6px 26px rgba(0,0,0,0.7)',
               transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              flexShrink: 0,
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'scale(1.06)';
-              e.currentTarget.style.boxShadow = '0 0 90px rgba(239,68,68,0.65), 0 6px 28px rgba(0,0,0,0.7)';
+              e.currentTarget.style.boxShadow = '0 0 86px rgba(239,68,68,0.65), 0 6px 28px rgba(0,0,0,0.7)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 0 60px rgba(239,68,68,0.40), 0 6px 28px rgba(0,0,0,0.7)';
+              e.currentTarget.style.boxShadow = '0 0 54px rgba(239,68,68,0.40), 0 6px 26px rgba(0,0,0,0.7)';
             }}
           >
             SEARCH FOR CLASH
           </button>
-
-          {/* ── Tutorial ── */}
-          <div style={{
-            width: '100%', maxWidth: '680px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            gap: '32px',
-          }}>
-            {/* Title — matches nav: Pixelify Sans, white, uppercase, tracked */}
-            <div style={{
-              fontFamily: "'Pixelify Sans', system-ui, sans-serif",
-              fontSize: '28px',
-              fontWeight: 700,
-              color: '#ffffff',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              textShadow: '0 0 30px rgba(239,68,68,0.55)',
-            }}>
-              Tutorial
-            </div>
-
-            {/* Divider */}
-            <div style={{
-              width: '280px', height: '1px',
-              background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.6), transparent)',
-            }} />
-
-            {/* Controls grid */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '28px',
-              width: '100%',
-              padding: '0 16px',
-              boxSizing: 'border-box',
-            }}>
-
-              {/* Movement row */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'rgba(0,0,0,0.45)',
-                border: '1px solid rgba(239,68,68,0.22)',
-                borderRadius: '14px',
-                padding: '20px 28px',
-                gap: '24px',
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontFamily: "'Pixelify Sans', system-ui, sans-serif",
-                    fontSize: '16px',
-                    color: '#ffffff',
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    marginBottom: '6px',
-                  }}>
-                    Movement
-                  </div>
-                  <div style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px',
-                    color: 'rgba(255,255,255,0.50)',
-                    letterSpacing: '0.06em',
-                  }}>
-                    Move your character around the arena
-                  </div>
-                </div>
-                <img
-                  src={wasdGif}
-                  alt="WASD movement keys"
-                  style={{
-                    height: '100px',
-                    imageRendering: 'pixelated',
-                    flexShrink: 0,
-                  }}
-                />
-              </div>
-
-            </div>
-          </div>
         </div>
       )}
 
