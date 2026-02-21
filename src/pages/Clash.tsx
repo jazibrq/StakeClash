@@ -6,6 +6,7 @@ import { Navigation } from '@/components/Navigation';
 import RaidGame from '@/components/RaidGame';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
+import { SHARED_RESOURCES_KEY } from '@/pages/Fortress';
 type Phase = 'search' | 'searching' | 'selecting' | 'playing';
 
 /* ── Animated sprite canvas ── */
@@ -145,6 +146,20 @@ const Clash = () => {
         awards:    result === 'Won' ? '+48' : '+0',
         resources,
       });
+
+      if (result === 'Won') {
+        try {
+          const raw = localStorage.getItem(SHARED_RESOURCES_KEY);
+          const current = raw ? JSON.parse(raw) : { ore: 1000, gold: 564, diamond: 276, mana: 821 };
+          const updated = {
+            ore:     (current.ore     ?? 0) + resources.ore,
+            gold:    (current.gold    ?? 0) + resources.gold,
+            diamond: (current.diamond ?? 0) + resources.diamond,
+            mana:    (current.mana    ?? 0) + resources.mana,
+          };
+          localStorage.setItem(SHARED_RESOURCES_KEY, JSON.stringify(updated));
+        } catch { /* ignore storage errors */ }
+      }
     },
     [player],
   );
