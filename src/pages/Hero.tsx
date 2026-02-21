@@ -145,8 +145,8 @@ const heroes = [
       { id:'ab1t2',  label:'Phantom Blade',  description:'Dash leaves a shockwave hitting all in path.',icon:'sparkles', cost:{ ore:80, gold:42, diamond:10 },       requires:'ab1t1', x:72,  y:50  },
       { id:'ab2t1',  label:'Reinforced Guard',description:'Shield duration +0.8 s. Cooldown −1 s.',   icon:'shield',   cost:{ ore:55, gold:28 },                    requires:'ab2',   x:250, y:115 },
       { id:'ab2t2',  label:'Counter Stance', description:'On shield expiry, reflect 30% damage back.', icon:'star',    cost:{ ore:80, gold:42, mana:22 },           requires:'ab2t1', x:250, y:50  },
-      { id:'ab3t1',  label:'Extended Whirl', description:'Hitbox radius +35%. Damage ×2.3.',           icon:'zap',     cost:{ gold:38, diamond:14 },                requires:'ab3',   x:470, y:108 },
-      { id:'ab3t2',  label:'Death Spiral',   description:'Pulls enemies inward before the final hit.',  icon:'flame',   cost:{ ore:85, gold:50, diamond:18, mana:25 }, requires:'ab3t1', x:428, y:46  },
+      { id:'ab3t1',  label:'Extended Whirl', description:'Hitbox radius +35%. Damage ×2.3.',           icon:'zap',     cost:{ gold:38, diamond:14 },                requires:'ab3',   x:470, y:115 },
+      { id:'ab3t2',  label:'Death Spiral',   description:'Pulls enemies inward before the final hit.',  icon:'flame',   cost:{ ore:85, gold:50, diamond:18, mana:25 }, requires:'ab3t1', x:428, y:50  },
     ] as SkillNode[],
   },
   {
@@ -312,7 +312,7 @@ const CostRow = ({ cost, canAfford }: { cost: ResourceCost; canAfford: boolean }
 /* ── Visual Skill Tree Modal ── */
 const CANVAS_W = 500;
 const CANVAS_H = 350;
-const NODE_R   = 27;
+const NODE_R   = 22;
 
 function SkillTreeModal({
   hero,
@@ -360,20 +360,22 @@ function SkillTreeModal({
   const lines = (hero.skillNodes as SkillNode[])
     .filter(n => n.requires !== null)
     .map(n => {
-      const parent = (hero.skillNodes as SkillNode[]).find(p => p.id === n.requires)!;
+      const parent = (hero.skillNodes as SkillNode[]).find(p => p.id === n.requires);
+      if (!parent) return null;
       const dx = n.x - parent.x, dy = n.y - parent.y;
       const len = Math.sqrt(dx * dx + dy * dy);
       const ux = dx / len, uy = dy / len;
-      const parentR = parent.id === 'root' ? NODE_R * 1.3 : NODE_R;
-      const childR  = n.id    === 'root' ? NODE_R * 1.3 : NODE_R;
+      const pR = parent.id === 'root' ? NODE_R * 1.3 : NODE_R;
+      const cR = n.id      === 'root' ? NODE_R * 1.3 : NODE_R;
       const active = isUnlocked(n.requires!) && isUnlocked(n.id);
       const parentUnlocked = isUnlocked(n.requires!);
       return {
-        x1: parent.x + ux * parentR, y1: parent.y + uy * parentR,
-        x2: n.x      - ux * childR,  y2: n.y      - uy * childR,
+        x1: parent.x + ux * pR, y1: parent.y + uy * pR,
+        x2: n.x      - ux * cR, y2: n.y      - uy * cR,
         active, parentUnlocked,
       };
-    });
+    })
+    .filter(Boolean) as { x1:number; y1:number; x2:number; y2:number; active:boolean; parentUnlocked:boolean }[];
 
   return (
     <div
@@ -426,27 +428,20 @@ function SkillTreeModal({
           <div className="relative w-full" style={{ paddingBottom: `${(CANVAS_H / CANVAS_W) * 100}%` }}>
             <div className="absolute inset-0">
 
-              {/* SVG connecting lines (only between non-root nodes) */}
-              <svg className="absolute inset-0 pointer-events-none w-full h-full"
-                viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} preserveAspectRatio="xMidYMid meet">
-                <defs>
-                  <filter id={`lg_${hero.id}`} x="-60%" y="-60%" width="220%" height="220%">
-                    <feGaussianBlur stdDeviation="3.5" result="blur"/>
-                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                  </filter>
-                </defs>
+              {/* SVG lines — rendered first so node circles sit on top */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} preserveAspectRatio="xMidYMid meet"
+                style={{ overflow: 'visible' }}>
                 {lines.map((l, i) => (
                   <line key={i}
                     x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-                    stroke={l.active ? hero.accentHex : l.parentUnlocked ? `${hero.accentHex}77` : 'rgba(255,255,255,0.18)'}
-                    strokeWidth={l.active ? 2.5 : l.parentUnlocked ? 1.8 : 1.2}
-                    opacity={l.active ? 0.9 : l.parentUnlocked ? 0.7 : 0.45}
-                    filter={l.active ? `url(#lg_${hero.id})` : undefined}
+                    stroke={l.active ? hero.accentHex : l.parentUnlocked ? `${hero.accentHex}cc` : `${hero.accentHex}66`}
+                    strokeWidth={4}
+                    strokeLinecap="round"
+                    opacity={1}
                   />
                 ))}
               </svg>
-
-
 
               {/* Nodes */}
               {(hero.skillNodes as SkillNode[]).map(node => {
@@ -517,7 +512,6 @@ function SkillTreeModal({
                   </div>
                 );
               })}
-
 
             </div>
           </div>
