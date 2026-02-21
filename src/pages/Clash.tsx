@@ -1,67 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { VideoBackground } from '@/components/VideoBackground';
-import { GrainOverlay } from '@/components/GrainOverlay';
-import { Navigation } from '@/components/Navigation';
+import { PageLayout } from '@/components/PageLayout';
+import AnimatedSprite from '@/components/AnimatedSprite';
 import RaidGame from '@/components/RaidGame';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
-import { SHARED_RESOURCES_KEY } from '@/pages/Fortress';
+import { SHARED_RESOURCES_KEY } from '@/lib/constants';
 type Phase = 'search' | 'searching' | 'selecting' | 'playing';
-
-/* ── Animated sprite canvas ── */
-const AnimatedSprite = ({
-  src, frames, frameWidth, frameHeight, frameDuration = 150, size = 96,
-}: {
-  src: string; frames: number; frameWidth: number; frameHeight: number;
-  frameDuration?: number; size?: number;
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef    = useRef<HTMLImageElement | null>(null);
-  const frameRef  = useRef(0);
-  const timerRef  = useRef(0);
-  const rafRef    = useRef(0);
-
-  const draw = useCallback(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    const img = imgRef.current;
-    if (!ctx || !img || !img.complete) return;
-    ctx.clearRect(0, 0, size, size);
-    ctx.drawImage(img, frameRef.current * frameWidth, 0, frameWidth, frameHeight, 0, 0, size, size);
-  }, [frameWidth, frameHeight, size]);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = src;
-    img.onload = () => { imgRef.current = img; draw(); };
-    imgRef.current = img;
-  }, [src, draw]);
-
-  useEffect(() => {
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = now - last; last = now;
-      timerRef.current += dt;
-      if (timerRef.current >= frameDuration) {
-        timerRef.current -= frameDuration;
-        frameRef.current = (frameRef.current + 1) % frames;
-        draw();
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [frames, frameDuration, draw]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={size}
-      height={size}
-      style={{ imageRendering: 'pixelated', width: size, height: size, display: 'block' }}
-    />
-  );
-};
 
 /* ── Static random resource counts (generated once at module load) ── */
 const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -207,10 +152,11 @@ const Clash = () => {
   }, [navigate]);
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      <VideoBackground videoSrc="/videos/grimbackground.mp4" />
-      <GrainOverlay />
-      <Navigation forceWhiteNavText />
+    <PageLayout
+      style={{ height: '100vh', overflow: 'hidden', position: 'relative' }}
+      videoSrc="/videos/grimbackground.mp4"
+      forceWhiteNavText
+    >
 
       {/* ── Searching / matchmaking loading screen ── */}
       {phase === 'searching' && (
@@ -527,7 +473,7 @@ const Clash = () => {
           <RaidGame autoStart onReturn={handleReturn} onMatchEnd={handleMatchEnd} />
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 };
 

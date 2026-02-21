@@ -6,7 +6,9 @@
       "Bash(python3:*)",
       "Bash(npm install:*)",
       "Bash(node -e:*)",
-      "WebFetch(domain:docs.hedera.com)"
+      "WebFetch(domain:docs.hedera.com)",
+      "Bash(find:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

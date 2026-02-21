@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navigation } from '@/components/Navigation';
-import { VideoBackground } from '@/components/VideoBackground';
-import { GrainOverlay } from '@/components/GrainOverlay';
+import { PageLayout } from '@/components/PageLayout';
+import AnimatedSprite from '@/components/AnimatedSprite';
 import { Button } from '@/components/ui/button';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
-import { SHARED_RESOURCES_KEY } from '@/pages/Fortress';
+import { SHARED_RESOURCES_KEY, INITIAL_RESOURCES } from '@/lib/constants';
 
 import {
   Shield, Zap, Wind, Swords, GitBranch, X, ChevronRight,
@@ -49,76 +48,6 @@ const NODE_ICON_MAP: Record<NodeIcon, React.ComponentType<{ className?: string; 
   star:     Star,
   flame:    Flame,
   sparkles: Sparkles,
-};
-
-/* ── Animated sprite canvas ── */
-const AnimatedSprite = ({
-  src, frames, frameWidth, frameHeight, frameDuration = 150, size = 80, portrait = false,
-  portraitZoom = 1.8, portraitOffsetX = 0, portraitOffsetY = -0.1,
-}: {
-  src: string; frames: number; frameWidth: number; frameHeight: number;
-  frameDuration?: number; size?: number; portrait?: boolean;
-  portraitZoom?: number; portraitOffsetX?: number; portraitOffsetY?: number;
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef    = useRef<HTMLImageElement | null>(null);
-  const frameRef  = useRef(0);
-  const timerRef  = useRef(0);
-  const rafRef    = useRef(0);
-
-  const canvasSize = size;
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    const img = imgRef.current;
-    if (!ctx || !canvas || !img || !img.complete) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (portrait) {
-      // Draw full frame — circle container clips to show character
-      ctx.drawImage(img, frameRef.current * frameWidth, 0, frameWidth, frameHeight, 0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.drawImage(img, frameRef.current * frameWidth, 0, frameWidth, frameHeight, 0, 0, canvas.width, canvas.height);
-    }
-  }, [frameWidth, frameHeight, portrait, portraitZoom, portraitOffsetX, portraitOffsetY]);
-
-  useEffect(() => {
-    const img = new Image();
-    imgRef.current = img;
-    img.onload = () => { imgRef.current = img; draw(); };
-    img.src = src;
-    // handle already-cached images (onload won't fire)
-    if (img.complete) { imgRef.current = img; draw(); }
-  }, [src, draw]);
-
-  useEffect(() => {
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = now - last; last = now;
-      timerRef.current += dt;
-      if (timerRef.current >= frameDuration) {
-        timerRef.current -= frameDuration;
-        frameRef.current = (frameRef.current + 1) % frames;
-        draw();
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [frames, frameDuration, draw]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={canvasSize}
-      height={canvasSize}
-      className="animated-sprite"
-      style={{ imageRendering: 'pixelated', flexShrink: 0,
-        width: size, height: size,
-        ...(portrait ? {} : { transform: 'scale(1.8)', transformOrigin: 'bottom center' })
-      }}
-    />
-  );
 };
 
 /* ── Hero data ── */
@@ -618,8 +547,8 @@ const Hero = () => {
     try {
       const raw = localStorage.getItem(SHARED_RESOURCES_KEY);
       if (raw) setResources(JSON.parse(raw));
-      else setResources({ ore: 1000, gold: 564, diamond: 276, mana: 821 });
-    } catch { setResources({ ore: 1000, gold: 564, diamond: 276, mana: 821 }); }
+      else setResources({ ...INITIAL_RESOURCES });
+    } catch { setResources({ ...INITIAL_RESOURCES }); }
   }, [wallet?.address]);
 
   function saveResources(r: typeof resources) {
@@ -640,10 +569,7 @@ const Hero = () => {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col">
-      <VideoBackground />
-      <GrainOverlay />
-      <Navigation />
+    <PageLayout className="h-screen overflow-hidden flex flex-col">
 
       {showSkillTree && (
         <SkillTreeModal
@@ -691,6 +617,8 @@ const Hero = () => {
                           frameWidth={hero.idleSprite.frameWidth}
                           frameHeight={hero.idleSprite.frameHeight}
                           size={(hero as { spriteScale?: number }).spriteScale ?? 250}
+                          className="animated-sprite"
+                          style={{ flexShrink: 0, transform: 'scale(1.8)', transformOrigin: 'bottom center' }}
                         />
                       ) : (
                         <Shield className={cn('w-12 h-12 opacity-20 group-hover:opacity-30 transition-opacity', hero.accent)} />
@@ -760,7 +688,7 @@ const Hero = () => {
           </div>
         </div>
       </main>
-    </div>
+    </PageLayout>
   );
 };
 

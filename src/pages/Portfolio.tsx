@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Navigation } from '@/components/Navigation';
-import { VideoBackground } from '@/components/VideoBackground';
-import { GrainOverlay } from '@/components/GrainOverlay';
+import { PageLayout } from '@/components/PageLayout';
 import { Button } from '@/components/ui/button';
 import { MetricCard } from '@/components/ui/shared';
 import { TransactionModal } from '@/components/modals/TransactionModal';
@@ -56,10 +54,7 @@ const Portfolio = () => {
   const [timeRange, setTimeRange] = useState('1M');
 
   return (
-    <div className="min-h-screen">
-      <VideoBackground />
-      <GrainOverlay />
-      <Navigation />
+    <PageLayout>
 
       <main className="relative z-10 pt-24 pb-12">
         <div className="container mx-auto max-w-6xl px-4">
@@ -415,7 +410,7 @@ const Portfolio = () => {
           maxAmount={modalType === 'redeem' ? '2.03' : '12.50'}
         />
       )}
-    </div>
+    </PageLayout>
   );
 };
 

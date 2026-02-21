@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Navigation } from '@/components/Navigation';
-import { VideoBackground } from '@/components/VideoBackground';
-import { GrainOverlay } from '@/components/GrainOverlay';
+import { PageLayout } from '@/components/PageLayout';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/shared';
 import { HostLobbyModal } from '@/components/modals/HostLobbyModal';
@@ -54,10 +52,7 @@ const Play = () => {
   });
 
   return (
-    <div className="min-h-screen">
-      <VideoBackground />
-      <GrainOverlay />
-      <Navigation />
+    <PageLayout>
 
       <main className="relative z-10 pt-24 pb-12">
         <div className="container mx-auto max-w-6xl px-4">
@@ -351,7 +346,7 @@ const Play = () => {
           ]
         } : undefined}
       />
-    </div>
+    </PageLayout>
   );
 };
 

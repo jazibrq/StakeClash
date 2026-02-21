@@ -1,7 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { Navigation } from '@/components/Navigation';
-import { VideoBackground } from '@/components/VideoBackground';
-import { GrainOverlay } from '@/components/GrainOverlay';
+import { PageLayout } from '@/components/PageLayout';
+import AnimatedSprite from '@/components/AnimatedSprite';
 import { Footer } from '@/components/layout/Footer';
 import { PartnersBanner } from '@/components/home/PartnersBanner';
 import wKeyPng from '@/assets/Spritesheets/W.png';
@@ -71,59 +70,6 @@ const Resource = ({
 );
 
 /* ── Canvas-based sprite components for controls reference ── */
-
-const AnimatedSprite = ({
-  src, frames, frameWidth, frameHeight, frameDuration = 150, size = 96,
-}: {
-  src: string; frames: number; frameWidth: number; frameHeight: number;
-  frameDuration?: number; size?: number;
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imgRef    = useRef<HTMLImageElement | null>(null);
-  const frameRef  = useRef(0);
-  const timerRef  = useRef(0);
-  const rafRef    = useRef(0);
-
-  const draw = useCallback(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    const img = imgRef.current;
-    if (!ctx || !img || !img.complete) return;
-    ctx.clearRect(0, 0, size, size);
-    ctx.drawImage(img, frameRef.current * frameWidth, 0, frameWidth, frameHeight, 0, 0, size, size);
-  }, [frameWidth, frameHeight, size]);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = src;
-    img.onload = () => { imgRef.current = img; draw(); };
-    imgRef.current = img;
-  }, [src, draw]);
-
-  useEffect(() => {
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = now - last; last = now;
-      timerRef.current += dt;
-      if (timerRef.current >= frameDuration) {
-        timerRef.current -= frameDuration;
-        frameRef.current = (frameRef.current + 1) % frames;
-        draw();
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [frames, frameDuration, draw]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={size}
-      height={size}
-      style={{ imageRendering: 'pixelated', width: size, height: size, display: 'block' }}
-    />
-  );
-};
 
 /* ── Sprint: run animation with afterimage ghost trail ── */
 const DashAnim = ({ size = 96 }: { size?: number }) => {
@@ -285,10 +231,7 @@ const ULTIMATE_SPRITE_OFFSET = { x: 3, y: 28 };
 /* ─── page ──────────────────────────────────────────────── */
 
 const Learn = () => (
-  <div className="min-h-screen">
-    <VideoBackground />
-    <GrainOverlay />
-    <Navigation />
+  <PageLayout>
 
     <main className="relative z-10 pt-24 pb-0">
       <div
@@ -723,7 +666,7 @@ const Learn = () => (
       <PartnersBanner className="mt-16" />
       <Footer />
     </main>
-  </div>
+  </PageLayout>
 );
 
 export default Learn;

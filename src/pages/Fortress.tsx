@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Navigation } from '@/components/Navigation';
-import { VideoBackground } from '@/components/VideoBackground';
-import { GrainOverlay } from '@/components/GrainOverlay';
+import { PageLayout } from '@/components/PageLayout';
 import { FortressResourceDistrict, Resources } from '@/components/FortressResourceDistrict';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +14,7 @@ import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
 import { Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SHARED_RESOURCES_KEY, INITIAL_RESOURCES } from '@/lib/constants';
 
 type Resource = 'ore' | 'gold' | 'diamond' | 'mana';
 type Level = 1 | 2 | 3;
@@ -24,15 +23,6 @@ type UpgradeCost = { resource: Resource; label: string; amount: number };
 type FortressState = {
   resources: Resources;
   levels: Record<Resource, Level>;
-};
-
-export const SHARED_RESOURCES_KEY = 'stakeclash_resources';
-
-const INITIAL_RESOURCES: Resources = {
-  ore: 1000,
-  diamond: 276,
-  gold: 564,
-  mana: 821,
 };
 
 const INITIAL_LEVELS: Record<Resource, Level> = {
@@ -77,7 +67,7 @@ const Fortress = () => {
       const raw = localStorage.getItem(SHARED_RESOURCES_KEY);
       if (raw) return { resources: JSON.parse(raw), levels: INITIAL_LEVELS };
     } catch { /* ignore */ }
-    return { resources: INITIAL_RESOURCES, levels: INITIAL_LEVELS };
+    return { resources: { ...INITIAL_RESOURCES }, levels: INITIAL_LEVELS };
   });
   const [earnedRates, setEarnedRates] = useState<Partial<Record<Resource, number>>>({});
   const [selectedAsset, setSelectedAsset] = useState<VaultAsset>('ETH');
@@ -141,11 +131,7 @@ const Fortress = () => {
   };
 
   return (
-    <div className="h-screen overflow-hidden">
-      <VideoBackground />
-      <GrainOverlay />
-      <Navigation />
-
+    <PageLayout className="h-screen overflow-hidden">
       <div
         className="relative z-10 flex gap-4 px-4"
         style={{ height: 'calc(100vh - 1rem)', paddingTop: '5rem' }}
@@ -264,14 +250,12 @@ const Fortress = () => {
                   ];
                   return (
                     <div key={m.id} className="group border-t border-border first:border-0">
-                      {/* Main row: name + result */}
                       <div className="flex items-center justify-between py-1.5 cursor-default">
                         <p className="text-xs font-mono">{m.opponent}</p>
                         <p className={cn('text-xs font-medium', m.result === 'Won' ? 'text-emerald-400' : 'text-muted-foreground')}>
                           {m.result}
                         </p>
                       </div>
-                      {/* Inline resource row — revealed on hover */}
                       <div className="hidden group-hover:flex items-center gap-1.5 pb-1.5 flex-wrap">
                         <span className="text-[10px] text-muted-foreground">{new Date(m.date).toLocaleDateString()}</span>
                         <span className="text-[10px] text-muted-foreground">·</span>
@@ -303,7 +287,7 @@ const Fortress = () => {
           isHederaTestnet={wallet?.isHederaTestnet}
         />
       )}
-    </div>
+    </PageLayout>
   );
 };
 
