@@ -273,14 +273,22 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
         {step === 'success' && (() => {
           const isHbarDeposit = mode === 'deposit' && asset.symbol === 'HBAR';
           const isEthDeposit  = mode === 'deposit' && asset.symbol === 'ETH';
-          const rate = (parseFloat(amount) * 100).toFixed(0);
+          const isUsdcDeposit = mode === 'deposit' && asset.symbol === 'USDC';
+          const hbarRate = (parseFloat(amount) * 100).toFixed(0);
+          const ethRate  = (parseFloat(amount) * 100).toFixed(0);
+          const usdcRate = (parseFloat(amount) * 50).toFixed(0);
+
+          const resourceLogo = isHbarDeposit ? '/images/resources/orelogo.png'
+                             : isEthDeposit  ? '/images/resources/diamondlogo.png'
+                             : isUsdcDeposit ? '/images/resources/goldlogo.png'
+                             : null;
 
           return (
             <div className="p-8 text-center">
-              {isHbarDeposit || isEthDeposit ? (
+              {resourceLogo ? (
                 <img
-                  src={isHbarDeposit ? '/images/resources/orelogo.png' : '/images/resources/diamondlogo.png'}
-                  alt={isHbarDeposit ? 'Ore' : 'Diamond'}
+                  src={resourceLogo}
+                  alt="resource"
                   className="w-14 h-14 object-contain mx-auto mb-4"
                 />
               ) : (
@@ -298,15 +306,20 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
 
               {isHbarDeposit && (
                 <p className="text-xs text-muted-foreground mb-5">
-                  You earned <span className="text-white font-semibold">{rate} ore/hour</span>
+                  You earned <span className="text-orange-400 font-semibold">+{hbarRate} ore/hour</span>
                 </p>
               )}
               {isEthDeposit && (
                 <p className="text-xs text-muted-foreground mb-5">
-                  You earned <span className="text-white font-semibold">{rate} diamonds/hour</span>
+                  You earned <span className="text-cyan-400 font-semibold">+{ethRate} diamonds/hour</span>
                 </p>
               )}
-              {!isHbarDeposit && !isEthDeposit && (
+              {isUsdcDeposit && (
+                <p className="text-xs text-muted-foreground mb-5">
+                  You earned <span className="text-yellow-400 font-semibold">+{usdcRate} gold/hour</span>
+                </p>
+              )}
+              {!isHbarDeposit && !isEthDeposit && !isUsdcDeposit && (
                 <p className="text-xs text-muted-foreground mb-5">
                   {amount} {asset.symbol} {mode === 'deposit' ? 'deposited into vault' : 'withdrawn from vault'}
                 </p>

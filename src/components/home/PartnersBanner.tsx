@@ -1,4 +1,3 @@
-import uniswapLogo from '@/assets/uniswap-logo.svg';
 import usdcLogo from '@/assets/usdc-logo.png';
 import aaveLogo from '@/assets/aave-logo.png';
 
@@ -27,22 +26,6 @@ const RETHLogo = () => (
   </svg>
 );
 
-const SOLLogo = () => (
-  <svg viewBox="0 0 32 32" className="w-auto h-6">
-    <circle cx="16" cy="16" r="16" fill="#000"/>
-    <defs>
-      <linearGradient id="sol-grad" x1="4" y1="24" x2="28" y2="8" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="#9945FF"/>
-        <stop offset="50%" stopColor="#19FB9B"/>
-        <stop offset="100%" stopColor="#00D1FF"/>
-      </linearGradient>
-    </defs>
-    <path d="M9.5 20.8h13.6l-2.4 2.4H7.1z" fill="url(#sol-grad)"/>
-    <path d="M9.5 8.8l2.4-2.4h13.6l-2.4 2.4z" fill="url(#sol-grad)"/>
-    <path d="M22.5 14.8H8.9l2.4-2.4H25z" fill="url(#sol-grad)"/>
-  </svg>
-);
-
 const HederaLogo = () => (
   <svg viewBox="0 0 32 32" className="w-auto h-6">
     <circle cx="16" cy="16" r="16" fill="#000"/>
@@ -55,10 +38,23 @@ const HederaLogo = () => (
   </svg>
 );
 
+const HBARxLogo = () => (
+  <svg viewBox="0 0 32 32" className="w-auto h-6">
+    <circle cx="16" cy="16" r="16" fill="#0A0A0A" />
+    <circle cx="16" cy="16" r="15" fill="none" stroke="#3BE6C6" strokeWidth="1.5" />
+    <g fill="white">
+      <rect x="9.5" y="7.5" width="2.4" height="17" rx="0.6" />
+      <rect x="20.1" y="7.5" width="2.4" height="17" rx="0.6" />
+      <rect x="11.9" y="12.7" width="8.2" height="2.2" rx="0.6" />
+      <rect x="11.9" y="17.1" width="8.2" height="2.2" rx="0.6" />
+    </g>
+    <path d="M22.8 21.8l3.2 3.2m0-3.2l-3.2 3.2" stroke="#3BE6C6" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
 const partners = [
-  { name: 'UniSwap', logo: uniswapLogo, height: 'h-5', isComponent: false },
-  { name: 'Solana', logo: SOLLogo, height: 'h-6', isComponent: true },
   { name: 'Hedera', logo: HederaLogo, height: 'h-6', isComponent: true },
+  { name: 'HBARx', logo: HBARxLogo, height: 'h-6', isComponent: true },
   { name: 'USDC', logo: usdcLogo, height: 'h-6', isComponent: false },
   { name: 'ETH', logo: ETHLogo, height: 'h-6', isComponent: true },
   { name: 'rETH', logo: RETHLogo, height: 'h-6', isComponent: true },

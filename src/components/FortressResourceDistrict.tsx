@@ -5,9 +5,14 @@ type Level = 1 | 2 | 3;
 
 /* ─── Stats config ─────────────────────────────────────────────── */
 interface StatLine { label: string; value: string; delta?: string; }
+interface UpgradeRequirement {
+  resource: Resource;
+  label: string;
+  amount: number;
+}
 interface LevelSpec {
   stats: StatLine[];
-  requires?: { resource: Resource; label: string; amount: number }[];
+  requires?: UpgradeRequirement[];
 }
 interface FortressConfig {
   name: string;
@@ -143,15 +148,8 @@ const FORTRESS_CONFIG: Record<Resource, FortressConfig> = {
    accumulate mock resources over time at a fixed rate.            */
 export type Resources = Record<Resource, number>;
 
-const PRODUCTION_PER_SEC: Record<Resource, number> = {
-  ore:     2   / 3600,
-  gold:    1.5 / 3600,
-  diamond: 0.5 / 3600,
-  mana:    0.8 / 3600,
-};
-
-/* ─── Tooltip ──────────────────────────────────────────────────── */
-const Tooltip = ({
+/* ─── Details panel ────────────────────────────────────────────── */
+const DetailsPanel = ({
   resource, level, resources,
 }: { resource: Resource; level: Level; resources: Resources }) => {
   const cfg   = FORTRESS_CONFIG[resource];
@@ -162,14 +160,15 @@ const Tooltip = ({
   return (
     <div style={{
       position: 'absolute', inset: 0,
+      overflowY: 'auto',
       background: 'rgba(5,5,12,0.88)',
       backdropFilter: 'blur(6px)',
       display: 'flex', flexDirection: 'column',
       padding: '18px', gap: '10px',
-      zIndex: 20, pointerEvents: 'none',
+      zIndex: 20,
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px' }}>
         <img
           src={`/images/resources/${resource}logo.png`}
           alt={resource}
@@ -254,14 +253,14 @@ const Tooltip = ({
 
 /* ─── Individual resource panel ────────────────────────────────── */
 const ResourcePanel = memo(({
-  resource, resources, onLevelChange,
+  resource, level, resources, onLevelChange,
 }: {
   resource: Resource;
+  level: Level;
   resources: Resources;
-  onLevelChange: (r: Resource, l: Level) => void;
+  onLevelChange: (r: Resource, l: Level, costs: UpgradeRequirement[]) => void;
 }) => {
-  const [level, setLevel] = useState<Level>(1);
-  const [hovered, setHovered] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const src = `/animations/${resource}${level}.mp4`;
   const cfg = FORTRESS_CONFIG[resource];
@@ -280,19 +279,19 @@ const ResourcePanel = memo(({
   const nextLevel = level < 3 ? (level + 1) as Level : null;
   const nextReqs  = nextLevel ? cfg.levels[nextLevel].requires ?? [] : [];
   const canUpgrade = nextLevel !== null && nextReqs.every(r => resources[r.resource] >= r.amount);
+  const nextCostText = nextReqs.length > 0
+    ? nextReqs.map(r => `${r.amount} ${r.label}`).join(' + ')
+    : 'Free';
 
   const handleUpgrade = (ev: React.MouseEvent) => {
     ev.stopPropagation();
     if (!nextLevel || !canUpgrade) return;
-    setLevel(nextLevel);
-    onLevelChange(resource, nextLevel);
+    onLevelChange(resource, nextLevel, nextReqs);
   };
 
   return (
     <div
       className="relative bg-black overflow-hidden w-full h-full"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
       <video
         key={src}
@@ -300,6 +299,65 @@ const ResourcePanel = memo(({
         autoPlay muted loop playsInline preload="auto"
         style={videoStyle}
       />
+
+      {/* Info / close controls */}
+      {!detailsOpen && (
+        <button
+          onClick={(ev) => {
+            ev.stopPropagation();
+            setDetailsOpen(true);
+          }}
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            zIndex: 21,
+            width: 22,
+            height: 22,
+            borderRadius: '999px',
+            border: '1px solid rgba(255,255,255,0.25)',
+            background: 'rgba(0,0,0,0.62)',
+            color: 'rgba(255,255,255,0.92)',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            fontWeight: 700,
+            lineHeight: 1,
+            cursor: 'pointer',
+          }}
+          aria-label={`Open ${cfg.name} info`}
+          title="Info"
+        >
+          i
+        </button>
+      )}
+      {detailsOpen && (
+        <button
+          onClick={(ev) => {
+            ev.stopPropagation();
+            setDetailsOpen(false);
+          }}
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            zIndex: 22,
+            width: 22,
+            height: 22,
+            borderRadius: '5px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            background: 'rgba(127, 29, 29, 0.65)',
+            color: 'rgba(255,255,255,0.95)',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            fontWeight: 700,
+            lineHeight: 1,
+            cursor: 'pointer',
+          }}
+          aria-label={`Close ${cfg.name} info`}
+        >
+          X
+        </button>
+      )}
 
       {/* Level badge + upgrade button */}
       <div style={{
@@ -337,7 +395,7 @@ const ResourcePanel = memo(({
               boxShadow: canUpgrade ? `0 0 8px ${cfg.color}44` : 'none',
             }}
           >
-            UPGRADE
+            UPGRADE ({nextCostText})
           </button>
         ) : (
           <div style={{
@@ -365,9 +423,9 @@ const ResourcePanel = memo(({
         {cfg.name}
       </div>
 
-      {/* Hover tooltip */}
-      {hovered && (
-        <Tooltip resource={resource} level={level} resources={resources} />
+      {/* Click details panel */}
+      {detailsOpen && (
+        <DetailsPanel resource={resource} level={level} resources={resources} />
       )}
     </div>
   );
@@ -379,11 +437,18 @@ const resources: Resource[] = ['ore', 'gold', 'diamond', 'mana'];
 
 export const FortressResourceDistrict: React.FC<{
   resources: Resources;
-  onLevelChange: (r: Resource, l: Level) => void;
-}> = ({ resources: res, onLevelChange }) => (
+  levels: Record<Resource, Level>;
+  onLevelChange: (r: Resource, l: Level, costs: UpgradeRequirement[]) => void;
+}> = ({ resources: res, levels, onLevelChange }) => (
   <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-px bg-black">
     {resources.map((r) => (
-      <ResourcePanel key={r} resource={r} resources={res} onLevelChange={onLevelChange} />
+      <ResourcePanel
+        key={r}
+        resource={r}
+        level={levels[r]}
+        resources={res}
+        onLevelChange={onLevelChange}
+      />
     ))}
   </div>
 );

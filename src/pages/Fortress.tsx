@@ -4,6 +4,13 @@ import { VideoBackground } from '@/components/VideoBackground';
 import { GrainOverlay } from '@/components/GrainOverlay';
 import { FortressResourceDistrict, Resources } from '@/components/FortressResourceDistrict';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { VaultDepositModal } from '@/components/modals/VaultDepositModal';
 import { useWalletContext } from '@/contexts/WalletContext';
 import { usePlayerData } from '@/hooks/usePlayerData';
@@ -12,13 +19,49 @@ import { cn } from '@/lib/utils';
 
 type Resource = 'ore' | 'gold' | 'diamond' | 'mana';
 type Level = 1 | 2 | 3;
+type VaultAsset = 'ETH' | 'HBAR' | 'USDC';
+type UpgradeCost = { resource: Resource; label: string; amount: number };
+type FortressState = {
+  resources: Resources;
+  levels: Record<Resource, Level>;
+};
 
-/* Production rates per second (mirrors FortressResourceDistrict) */
-const PROD_PER_SEC: Record<Resource, number> = {
-  ore:     2   / 3600,
-  gold:    1.5 / 3600,
-  diamond: 0.5 / 3600,
-  mana:    0.8 / 3600,
+const INITIAL_RESOURCES: Resources = {
+  ore: 1000,
+  diamond: 276,
+  gold: 564,
+  mana: 821,
+};
+
+const INITIAL_LEVELS: Record<Resource, Level> = {
+  ore: 1,
+  gold: 1,
+  diamond: 1,
+  mana: 1,
+};
+
+/* Production rates per hour by building level */
+const PROD_PER_HOUR: Record<Resource, Record<Level, number>> = {
+  ore: {
+    1: 2,
+    2: 5,
+    3: 10,
+  },
+  gold: {
+    1: 1.5,
+    2: 3,
+    3: 6,
+  },
+  diamond: {
+    1: 0.5,
+    2: 1.2,
+    3: 2.5,
+  },
+  mana: {
+    1: 0.8,
+    2: 2,
+    3: 4,
+  },
 };
 
 /* ─── Page ──────────────────────────────────────────────────────── */
@@ -27,37 +70,65 @@ const Fortress = () => {
   const player = usePlayerData(wallet?.address ?? null);
 
   const [modalType, setModalType]   = useState<'deposit' | 'withdraw' | null>(null);
-  const [resources, setResources]   = useState<Resources>({ ore: 0, gold: 0, diamond: 0, mana: 0 });
+  const [fortressState, setFortressState] = useState<FortressState>({
+    resources: INITIAL_RESOURCES,
+    levels: INITIAL_LEVELS,
+  });
   const [earnedRates, setEarnedRates] = useState<Partial<Record<Resource, number>>>({});
+  const [selectedAsset, setSelectedAsset] = useState<VaultAsset>('ETH');
+  const resources = fortressState.resources;
+  const levels = fortressState.levels;
 
   /* Accumulate resources over time (replaced by real wallet data when available) */
   useEffect(() => {
     const id = setInterval(() => {
-      setResources(prev => ({
-        ore:     prev.ore     + PROD_PER_SEC.ore,
-        gold:    prev.gold    + PROD_PER_SEC.gold,
-        diamond: prev.diamond + PROD_PER_SEC.diamond,
-        mana:    prev.mana    + PROD_PER_SEC.mana,
+      setFortressState(prev => ({
+        ...prev,
+        resources: {
+          ore:     prev.resources.ore     + (PROD_PER_HOUR.ore[prev.levels.ore]         / 3600),
+          gold:    prev.resources.gold    + (PROD_PER_HOUR.gold[prev.levels.gold]       / 3600),
+          diamond: prev.resources.diamond + (PROD_PER_HOUR.diamond[prev.levels.diamond] / 3600),
+          mana:    prev.resources.mana    + (PROD_PER_HOUR.mana[prev.levels.mana]       / 3600),
+        },
       }));
     }, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const handleLevelChange = (_resource: Resource, _level: Level) => {
-    /* Could trigger a toast / contract call here */
+  const handleLevelChange = (resource: Resource, level: Level, costs: UpgradeCost[]) => {
+    setFortressState(prev => {
+      if (prev.levels[resource] >= level) return prev;
+
+      const canAfford = costs.every((cost) => prev.resources[cost.resource] >= cost.amount);
+      if (!canAfford) return prev;
+
+      const nextResources = { ...prev.resources };
+      for (const cost of costs) {
+        nextResources[cost.resource] = Math.max(0, nextResources[cost.resource] - cost.amount);
+      }
+
+      return {
+        resources: nextResources,
+        levels: { ...prev.levels, [resource]: level },
+      };
+    });
   };
 
   /* Wallet-derived values */
-  const deposited   = wallet?.address && player.totalDeposited > 0
-    ? `${player.totalDeposited.toFixed(2)}`
+  const assetDeposited = player.vaultBalances[selectedAsset] ?? 0;
+  const deposited = wallet?.address
+    ? `${assetDeposited.toFixed(selectedAsset === 'USDC' ? 2 : 4)} ${selectedAsset}`
     : '—';
-  const yieldEarned = '—'; // TODO: compute from on-chain yield
+  const totalEconomy = wallet?.address
+    ? player.totalDeposited.toFixed(2)
+    : '—';
 
   const handleTransaction = (token: string, amount: number, txMode: 'deposit' | 'withdraw') => {
     if (txMode === 'deposit') {
       player.recordDeposit(token, amount);
       if (token === 'HBAR') setEarnedRates(prev => ({ ...prev, ore:     (prev.ore     ?? 0) + amount * 100 }));
       if (token === 'ETH')  setEarnedRates(prev => ({ ...prev, diamond: (prev.diamond ?? 0) + amount * 100 }));
+      if (token === 'USDC') setEarnedRates(prev => ({ ...prev, gold:    (prev.gold    ?? 0) + amount * 50  }));
     }
     if (txMode === 'withdraw') player.recordWithdraw(token, amount);
   };
@@ -84,6 +155,7 @@ const Fortress = () => {
         >
           <FortressResourceDistrict
             resources={resources}
+            levels={levels}
             onLevelChange={handleLevelChange}
           />
         </div>
@@ -99,14 +171,27 @@ const Fortress = () => {
               <Wallet className="w-4 h-4" />
               <span className="text-xs uppercase tracking-wide font-medium">Vault</span>
             </div>
+            <div className="space-y-1">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Asset</span>
+              <Select value={selectedAsset} onValueChange={(value) => setSelectedAsset(value as VaultAsset)}>
+                <SelectTrigger className="h-8 text-xs bg-white/[0.03] border-white/10 focus:ring-0">
+                  <SelectValue placeholder="Select asset" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#111111] border-white/10">
+                  <SelectItem value="ETH">ETH</SelectItem>
+                  <SelectItem value="HBAR">HBAR</SelectItem>
+                  <SelectItem value="USDC">USDC</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">Deposited</span>
                 <span className="font-mono text-sm font-semibold">{deposited}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">Yield</span>
-                <span className="font-mono text-sm text-primary">{yieldEarned}</span>
+                <span className="text-xs text-muted-foreground">Total Economy</span>
+                <span className="font-mono text-sm text-primary">{totalEconomy}</span>
               </div>
             </div>
             <div className="space-y-1.5 pt-1">
@@ -115,13 +200,6 @@ const Fortress = () => {
                 className="w-full btn-cyan-gradient text-xs h-8"
               >
                 Deposit
-              </Button>
-              <Button
-                onClick={() => setModalType('withdraw')}
-                variant="outline"
-                className="w-full text-xs h-8"
-              >
-                Withdraw
               </Button>
             </div>
           </div>
@@ -145,7 +223,12 @@ const Fortress = () => {
                   </div>
                   <div className="flex items-center gap-1.5">
                     {earnedRates[r] != null && (
-                      <span className="text-[10px] font-mono text-primary">+{earnedRates[r]}/hr</span>
+                      <span className={`text-[10px] font-mono ${
+                        r === 'ore'     ? 'text-orange-400' :
+                        r === 'gold'    ? 'text-yellow-400' :
+                        r === 'diamond' ? 'text-cyan-400'   :
+                                          'text-purple-400'
+                      }`}>+{earnedRates[r]}/hr</span>
                     )}
                     <span className="font-mono text-xs">{Math.floor(resources[r])}</span>
                   </div>
