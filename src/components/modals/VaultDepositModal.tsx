@@ -4,6 +4,7 @@ import { Modal, ModalContent } from '@/components/ui/modal';
 import { ChevronDown, Loader2, CheckCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { depositToTreasury } from '@/lib/vault';
+import { depositEth } from '@/lib/depositEth';
 import { useWalletContext } from '@/contexts/WalletContext';
 
 /* ─── Assets ─────────────────────────────────────────────────────── */
@@ -69,8 +70,10 @@ export const VaultDepositModal = ({ open, onClose, mode, onTransaction, walletBa
           return;
         }
         await depositToTreasury(amount);
+      } else if (mode === 'deposit' && asset.symbol === 'ETH') {
+        await depositEth(amount);
       } else {
-        // Non-HBAR or withdraw: keep mock flow for now
+        // Non-ETH/HBAR or withdraw: keep mock flow for now
         await new Promise(r => setTimeout(r, 2400));
       }
 

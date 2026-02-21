@@ -24,6 +24,8 @@ console.log("[INIT] Loaded ENV:", {
   OPERATOR_ID:         process.env.OPERATOR_ID,
   TREASURY_ACCOUNT_ID: process.env.TREASURY_ACCOUNT_ID,
 });
+console.log("[INIT] ETH_RPC_URL defined:", !!process.env.ETH_RPC_URL);
+console.log("[INIT] ETH_PRIVATE_KEY defined:", !!process.env.ETH_PRIVATE_KEY);
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const NETWORK                 = process.env.HEDERA_NETWORK || "testnet";

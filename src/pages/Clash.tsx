@@ -79,6 +79,7 @@ const RESOURCES = [
 const COLUMNS = [
   {
     difficulty: 'Easy',
+    stake: '0.001',
     color: '#22c55e',
     glow: 'rgba(34,197,94,0.35)',
     border: 'rgba(34,197,94,0.4)',
@@ -91,6 +92,7 @@ const COLUMNS = [
   },
   {
     difficulty: 'Medium',
+    stake: '0.005',
     color: '#eab308',
     glow: 'rgba(234,179,8,0.35)',
     border: 'rgba(234,179,8,0.4)',
@@ -103,6 +105,7 @@ const COLUMNS = [
   },
   {
     difficulty: 'Hard',
+    stake: '0.01',
     color: '#ef4444',
     glow: 'rgba(239,68,68,0.35)',
     border: 'rgba(239,68,68,0.4)',

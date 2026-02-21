@@ -22,7 +22,7 @@ export const HeroSection = () => {
           </div>
 
           {/* Tagline */}
-          <p className="text-xl md:text-2xl text-muted-foreground mb-10 tracking-wide font-ui">
+          <p className="text-xl md:text-2xl text-white mb-10 tracking-wide font-ui">
             Stake. Compete. Earn.
           </p>
 
