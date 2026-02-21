@@ -78,6 +78,11 @@ function addAdminLog(message: string): void {
 // ── Processed tx tracker ───────────────────────────────────────────────────
 const processed = new Set<string>();
 
+// ── Per-session ETH refund deduplication ───────────────────────────────────
+// Prevents a second ETH send if an old scheduled Hedera TX (from a prior
+// backend session) executes after startup and triggers the refund block again.
+const ethRefundedThisSession = new Set<string>();
+
 // ── Types ──────────────────────────────────────────────────────────────────
 interface HbarTransfer { account: string; amount: number; is_approval: boolean; }
 interface MirrorTx {
@@ -284,10 +289,19 @@ async function poll(): Promise<void> {
           console.log(`[REFUND] Hedera refund confirmed — account: ${recipientTransfer.account}, EVM: ${evmAddress}`);
           addAdminLog(`Hedera refund detected for ${evmAddress}`);
 
-          console.log(`[REFUND] Sending ETH refund to ${evmAddress}`);
-          const ethTx = await sendEth(evmAddress, 1_000_000_000_000_000n); // 0.001 ETH
-          addAdminLog(`ETH refund tx sent: ${ethTx}`);
-          addAdminLog(`ETH refund confirmed: ${ethTx}`);
+          const evmKey = evmAddress.toLowerCase();
+          const ethWei = ethDeposits.get(evmKey);
+          if (ethWei && !ethRefundedThisSession.has(evmKey)) {
+            ethDeposits.delete(evmKey);
+            saveEthDeposits(ethDeposits);
+            ethRefundedThisSession.add(evmKey);
+            console.log(`[REFUND] Sending ETH refund to ${evmAddress} — ${ethWei} wei`);
+            const ethTx = await sendEth(evmAddress, ethWei);
+            addAdminLog(`ETH refund tx sent: ${ethTx}`);
+            addAdminLog(`ETH refund confirmed: ${ethTx}`);
+          } else {
+            console.log(`[REFUND] ETH skipped for ${evmKey} — ${!ethWei ? 'no deposit on record' : 'already refunded this session'}`);
+          }
 
           console.log(`[REFUND] Sending USDC refund to ${evmAddress}`);
           const usdcTx = await sendUsdc(evmAddress, 1_000_000n); // 1 USDC
